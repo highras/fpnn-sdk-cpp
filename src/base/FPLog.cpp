@@ -5,7 +5,13 @@
 
 using namespace fpnn;
 
-static std::mutex gc_FPLogMutex;
+/*
+	We don't use gc_FPLogCreateMutex in FPLog business logic, because gc_FPLogCreateMutex maybe free before _fpLogger.
+	For some compiler, global variable free order maybe stack; but for other compiler, the free order maybe same as the init order.
+	e.g. g++ with XCode on MacOS X.
+*/
+static std::mutex* gc_FPLogMutex = 0;
+static std::mutex gc_FPLogCreateMutex;
 static std::atomic<bool> _created(false);
 static FPLogPtr _fpLogger;
 
@@ -13,14 +19,21 @@ FPLogPtr FPLog::instance()
 {
 	if (!_created)
 	{
-		std::unique_lock<std::mutex> lck(gc_FPLogMutex);
+		std::unique_lock<std::mutex> lck(gc_FPLogCreateMutex);
 		if (!_created)
 		{
 			_fpLogger.reset(new FPLog);
+			gc_FPLogMutex = new std::mutex();
 			_created = true;
 		}
 	}
 	return _fpLogger;
+}
+
+FPLog::~FPLog()
+{
+	if (gc_FPLogMutex)
+		delete gc_FPLogMutex;
 }
 
 void FPLog::log(FPLogLevel currLevel,bool compulsory, const char* fileName, int32_t line, const char* funcName, const char* tag, const char* format, ...)
@@ -48,7 +61,7 @@ void FPLog::log(FPLogLevel currLevel,bool compulsory, const char* fileName, int3
 		va_end(va);
 		if (vs > 0)
 		{
-			std::unique_lock<std::mutex> lck(gc_FPLogMutex);
+			std::unique_lock<std::mutex> lck(*gc_FPLogMutex);
 			logger->_logQueue.push_back(logItemBuffer);
 		}
 	}
@@ -57,7 +70,7 @@ void FPLog::log(FPLogLevel currLevel,bool compulsory, const char* fileName, int3
 
 void FPLog::clear()
 {
-	std::unique_lock<std::mutex> lck(gc_FPLogMutex);
+	std::unique_lock<std::mutex> lck(*gc_FPLogMutex);
 	if (_fpLogger)
 		_fpLogger->_logQueue.clear();
 }
@@ -66,7 +79,7 @@ std::vector<std::string> FPLog::copyLogs(int latestItemCount)
 {
 	std::vector<std::string> rev;
 
-	std::unique_lock<std::mutex> lck(gc_FPLogMutex);
+	std::unique_lock<std::mutex> lck(*gc_FPLogMutex);
 	if (_fpLogger)
 	{
 		int count = (int)(_fpLogger->_logQueue.size());
@@ -88,14 +101,14 @@ std::vector<std::string> FPLog::copyLogs(int latestItemCount)
 
 void FPLog::swap(std::deque<std::string>& queue)
 {
-	std::unique_lock<std::mutex> lck(gc_FPLogMutex);
+	std::unique_lock<std::mutex> lck(*gc_FPLogMutex);
 	if (_fpLogger)
 		_fpLogger->_logQueue.swap(queue);
 }
 
 void FPLog::printLogs(int latestItemCount)
 {
-	std::unique_lock<std::mutex> lck(gc_FPLogMutex);
+	std::unique_lock<std::mutex> lck(*gc_FPLogMutex);
 	if (_fpLogger)
 	{
 		int count = (int)(_fpLogger->_logQueue.size());

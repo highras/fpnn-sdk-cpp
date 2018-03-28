@@ -32,7 +32,7 @@ namespace fpnn
 	class ClientEngine: virtual public IConcurrentSender
 	{
 	private:
-		static std::mutex _mutex;
+		std::mutex _mutex;
 		FPLogPtr _logHolder;
 
 		int _notifyFds[2];

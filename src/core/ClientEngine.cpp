@@ -17,7 +17,12 @@
 
 using namespace fpnn;
 
-std::mutex ClientEngine::_mutex;
+/*
+	We don't use gc_mutex in ClientEngine business logic, because gc_mutex maybe free before _engine.
+	For some compiler, global variable free order maybe stack; but for other compiler, the free order maybe same as the init order.
+	e.g. g++ with XCode on MacOS X.
+*/
+static std::mutex gc_mutex;
 static std::atomic<bool> _created(false);
 static ClientEnginePtr _engine;
 
@@ -25,7 +30,7 @@ ClientEnginePtr ClientEngine::create(const ClientEngineInitParams *params)
 {
 	if (!_created)
 	{
-		std::unique_lock<std::mutex> lck(_mutex);
+		std::unique_lock<std::mutex> lck(gc_mutex);
 		if (!_created)
 		{
 			_engine.reset(new ClientEngine(params));

@@ -91,17 +91,17 @@ namespace fpnn
 		*/
 		virtual FPAnswerPtr sendQuest(FPQuestPtr quest, int timeout = 0)
 		{
-			return _concurrentSender->sendQuest(_socket, _token, _mutex, quest, timeout);
+			return _concurrentSender->sendQuest(_socket, _token, _mutex, quest, timeout * 1000);
 		}
 	
 		virtual bool sendQuest(FPQuestPtr quest, AnswerCallback* callback, int timeout = 0)
 		{
-			return _concurrentSender->sendQuest(_socket, _token, quest, callback, timeout);
+			return _concurrentSender->sendQuest(_socket, _token, quest, callback, timeout * 1000);
 		}
 	
 		virtual bool sendQuest(FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, int timeout = 0)
 		{
-			return _concurrentSender->sendQuest(_socket, _token, quest, std::move(task), timeout);
+			return _concurrentSender->sendQuest(_socket, _token, quest, std::move(task), timeout * 1000);
 		}
 	};
 
@@ -198,17 +198,17 @@ namespace fpnn
 		*/
 		virtual FPAnswerPtr sendQuest(const ConnectionInfo& connectionInfo, FPQuestPtr quest, int timeout = 0)
 		{
-			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, connectionInfo._mutex, quest, timeout);
+			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, connectionInfo._mutex, quest, timeout * 1000);
 		}
 	
 		virtual bool sendQuest(const ConnectionInfo& connectionInfo, FPQuestPtr quest, AnswerCallback* callback, int timeout = 0)
 		{
-			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, quest, callback, timeout);
+			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, quest, callback, timeout * 1000);
 		}
 	
 		virtual bool sendQuest(const ConnectionInfo& connectionInfo, FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, int timeout = 0)
 		{
-			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, quest, std::move(task), timeout);
+			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, quest, std::move(task), timeout * 1000);
 		}
 
 		/*===============================================================================

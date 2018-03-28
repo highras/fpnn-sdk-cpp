@@ -27,6 +27,8 @@ private:
 	FPLog(): _level(FP_LEVEL_ERROR), _maxQueueSize() {}
 
 public:
+	~FPLog();
+	
 	static FPLogPtr instance();
 	static void log(FPLogLevel curLevel, bool compulsory, const char* fileName, int32_t line, const char* funcName, const char* tag, const char* format, ...);
 	static void clear();
