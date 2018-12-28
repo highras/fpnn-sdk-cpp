@@ -68,7 +68,7 @@ namespace fpnn
 	public:
 		static ClientEnginePtr create(const ClientEngineInitParams* params = NULL);
 		static ClientEnginePtr instance() { return create(); }
-		~ClientEngine();
+		virtual ~ClientEngine();
 
 		inline static void setQuestTimeout(int seconds)
 		{
