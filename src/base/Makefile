@@ -1,7 +1,7 @@
 OBJS_C = hex.o md5.o rijndael.o sha1.o sha256.o base64.o
 
 OBJS_CXX = Endian.o FpnnError.o TaskThreadPool.o StringUtil.o TimeUtil.o httpcode.o \
-		   FPLog.o FileSystemUtil.o NetworkUtility.o
+		   FPLog.o FileSystemUtil.o NetworkUtility.o bit.o hashint.o jenkins.o obpool.o MidGenerator.o
 
 # Static 
 LIBFPNN_A = libfpbase.a
