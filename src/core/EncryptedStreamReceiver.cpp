@@ -28,7 +28,7 @@ bool EncryptedStreamReceiver::recv(int fd, int length)
 		{
 			LOG_ERROR("Recv huge TCP data from socket: %d. Connection will be closed by framework.", fd);
 			return false;
-		}	
+		}
 	}
 
 	while (_curr < _total)
@@ -37,6 +37,12 @@ bool EncryptedStreamReceiver::recv(int fd, int length)
 		int readBytes = (int)::read(fd, _currBuf + _curr, requireRead);
 		if (readBytes != requireRead)
 		{
+			if (readBytes == 0)
+			{
+				_closed = true;
+				return (_curr == 0);
+			}
+
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 			{
 				if (readBytes > 0)
@@ -70,6 +76,9 @@ bool EncryptedStreamReceiver::recvTcpPackage(int fd, int length, bool& needNextE
 	if (recv(fd, length) == false)
 		return false;
 
+	if (_closed)
+		return true;
+
 	needNextEvent = (_curr < _total);
 	return true;
 }
@@ -80,6 +89,9 @@ bool EncryptedStreamReceiver::recvPackage(int fd, bool& needNextEvent)
 	{
 		if (recv(fd) == false)
 			return false;
+
+		if (_closed)
+			return true;
 
 		if (_curr < FPMessage::_HeaderLength)
 		{

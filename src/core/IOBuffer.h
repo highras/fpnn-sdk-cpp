@@ -30,6 +30,7 @@ namespace fpnn
 				delete _receiver;
 		}
 
+		inline bool isClosed() { return _receiver->isClosed(); }
 		inline bool recvPackage(int fd, bool& needNextEvent)
 		{
 			return _receiver->recvPackage(fd, needNextEvent);

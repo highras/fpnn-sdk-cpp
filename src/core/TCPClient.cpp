@@ -14,6 +14,8 @@
 
 using namespace fpnn;
 
+const char* TCPClient::SDKVersion = "0.1.2";
+
 TCPClient::TCPClient(const std::string& host, int port, bool autoReconnect): _connected(false),
 	_connStatus(ConnStatus::NoConnected), _timeoutQuest(0),
 	_AESKeyLen(16), _packageEncryptionMode(true), _autoReconnect(autoReconnect)

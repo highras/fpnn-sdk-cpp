@@ -21,11 +21,13 @@ namespace fpnn
 	protected:
 		int _curr;
 		int _total;
+		bool _closed;
 
 	public:
-		Receiver(): _curr(0), _total(FPMessage::_HeaderLength) {}
+		Receiver(): _curr(0), _total(FPMessage::_HeaderLength), _closed(false) {}
 		virtual ~Receiver() {}
 
+		virtual bool isClosed() { return _closed; }
 		virtual bool recvPackage(int fd, bool& needNextEvent) = 0;
 		virtual bool fetch(FPQuestPtr& quest, FPAnswerPtr& answer) = 0;
 	};

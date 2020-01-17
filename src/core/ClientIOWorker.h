@@ -46,7 +46,12 @@ namespace fpnn
 		TCPClientPtr client() { return _client.lock(); }
 		virtual bool releaseable() { return (_refCount == 0); }
 
-		inline bool recvPackage(bool& needNextEvent) { return _recvBuffer.recvPackage(_connectionInfo->socket, needNextEvent); }
+		inline bool recvPackage(bool& needNextEvent, bool& closed)
+		{
+			bool rev = _recvBuffer.recvPackage(_connectionInfo->socket, needNextEvent);
+			closed = _recvBuffer.isClosed();
+			return rev;
+		}
 		inline bool entryEncryptMode(uint8_t *key, size_t key_len, uint8_t *iv, bool streamMode)
 		{
 			if (_recvBuffer.entryEncryptMode(key, key_len, iv, streamMode) == false)
@@ -94,9 +99,10 @@ namespace fpnn
 	//===============[ TCPClientIOProcessor ]=====================//
 	class TCPClientIOProcessor
 	{
-		static bool read(TCPClientConnection * connection);
+		static bool read(TCPClientConnection * connection, bool& closed);
 		static bool deliverAnswer(TCPClientConnection * connection, FPAnswerPtr answer);
 		static bool deliverQuest(TCPClientConnection * connection, FPQuestPtr quest);
+		static void closeConnection(TCPClientConnection * connection, bool normalClosed);
 
 	public:
 		static void processConnectionIO(TCPClientConnection * connection, bool canRead, bool canWrite);

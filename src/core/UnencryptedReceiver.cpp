@@ -37,6 +37,12 @@ bool UnencryptedReceiver::recv(int fd, int length)
 		int readBytes = (int)::read(fd, _currBuf + _curr, requireRead);
 		if (readBytes != requireRead)
 		{
+			if (readBytes == 0)
+			{
+				_closed = true;
+				return (_curr == 0);
+			}
+
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 			{
 				if (readBytes > 0)
@@ -70,6 +76,9 @@ bool UnencryptedReceiver::recvTcpPackage(int fd, int length, bool& needNextEvent
 	if (recv(fd, length) == false)
 		return false;
 
+	if (_closed)
+		return true;
+
 	needNextEvent = (_curr < _total);
 	return true;
 }
@@ -80,6 +89,9 @@ bool UnencryptedReceiver::recvPackage(int fd, bool& needNextEvent)
 	{
 		if (recv(fd) == false)
 			return false;
+
+		if (_closed)
+			return true;
 
 		if (_curr < FPMessage::_HeaderLength)
 		{

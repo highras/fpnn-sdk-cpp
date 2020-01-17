@@ -29,6 +29,12 @@ bool EncryptedPackageReceiver::recv(int fd, int length)
 		int readBytes = (int)::read(fd, _currBuf + _curr, requireRead);
 		if (readBytes != requireRead)
 		{
+			if (readBytes == 0)
+			{
+				_closed = true;
+				return (_curr == 0);
+			}
+
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 			{
 				if (readBytes > 0)
@@ -63,6 +69,9 @@ bool EncryptedPackageReceiver::recvPackage(int fd, bool& needNextEvent)
 	{
 		if (recv(fd) == false)
 			return false;
+
+		if (_closed)
+			return true;
 
 		if (_curr < _total)
 		{

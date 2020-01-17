@@ -58,6 +58,9 @@ IAsyncAnswerPtr IQuestProcessor::genAsyncAnswer()
 	if (gtl_answerStatus->_answered)
 		return nullptr;
 
+	if (gtl_answerStatus->_quest->isOneWay())
+		return nullptr;
+
 	IAsyncAnswerPtr async(new AsyncAnswerImp(_concurrentSender, gtl_answerStatus->_connInfo, gtl_answerStatus->_quest));
 	gtl_answerStatus->_answered = true;
 	return async;

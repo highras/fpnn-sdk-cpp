@@ -10,7 +10,7 @@ bool TCPClientConnection::waitForSendEvent()
 	return ClientEngine::instance()->waitSendEvent(this);
 }
 
-bool TCPClientIOProcessor::read(TCPClientConnection * connection)
+bool TCPClientIOProcessor::read(TCPClientConnection * connection, bool& closed)
 {
 	if (!connection->_recvBuffer.getToken())
 		return true;
@@ -18,12 +18,18 @@ bool TCPClientIOProcessor::read(TCPClientConnection * connection)
 	while (true)
 	{
 		bool needNextEvent;
-		if (connection->recvPackage(needNextEvent) == false)
+		if (connection->recvPackage(needNextEvent, closed) == false)
 		{
 			connection->_recvBuffer.returnToken();
 			LOG_ERROR("Error occurred when client receiving. Connection will be closed soon. %s", connection->_connectionInfo->str().c_str());
 			return false;
 		}
+		if (closed)
+		{
+			connection->_recvBuffer.returnToken();
+			return true;
+		}
+
 		if (needNextEvent)
 		{
 			connection->_recvBuffer.returnToken();
@@ -90,11 +96,18 @@ bool TCPClientIOProcessor::deliverQuest(TCPClientConnection * connection, FPQues
 
 void TCPClientIOProcessor::processConnectionIO(TCPClientConnection * connection, bool canRead, bool canWrite)
 {
+	bool closed = false;
 	bool fdInvalid = false;
 	bool needWaitSendEvent = false;
 
 	if (canRead)
-		fdInvalid = !read(connection);
+		fdInvalid = !read(connection, closed);
+
+	if (closed)
+	{
+		closeConnection(connection, true);
+		return;
+	}
 
 	if (!fdInvalid && canWrite)
 	{
@@ -132,6 +145,14 @@ void TCPClientIOProcessor::processConnectionIO(TCPClientConnection * connection,
 		LOG_INFO("Client connection wait event failed. Connection will be closed. %s", connection->_connectionInfo->str().c_str());
 	}
 
+	closeConnection(connection, false);
+}
+
+void TCPClientIOProcessor::closeConnection(TCPClientConnection * connection, bool normalClosed)
+{
+	bool closedByError = !normalClosed;
+	int errorCode = normalClosed ? FPNN_EC_CORE_CONNECTION_CLOSED : FPNN_EC_CORE_INVALID_CONNECTION;
+
 	if (ClientEngine::instance()->takeConnection(connection->_connectionInfo.get()) == NULL)
 	{
 		connection->_refCount--;
@@ -144,14 +165,14 @@ void TCPClientIOProcessor::processConnectionIO(TCPClientConnection * connection,
 	TCPClientPtr client = connection->client();
 	if (client)
 	{
-		client->clearConnectionQuestCallbacks(connection, FPNN_EC_CORE_INVALID_CONNECTION);
-		client->willClosed(connection, true);
+		client->clearConnectionQuestCallbacks(connection, errorCode);
+		client->willClosed(connection, closedByError);
 	}
 	else
 	{
-		ClientEngine::instance()->clearConnectionQuestCallbacks(connection, FPNN_EC_CORE_INVALID_CONNECTION);
+		ClientEngine::instance()->clearConnectionQuestCallbacks(connection, errorCode);
 		
-		CloseErrorTaskPtr task(new CloseErrorTask(connection, true));
+		CloseErrorTaskPtr task(new CloseErrorTask(connection, closedByError));
 		ClientEngine::runTask(task);
 	}
 

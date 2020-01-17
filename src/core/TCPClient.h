@@ -24,6 +24,10 @@ namespace fpnn
 	//=================================================================//
 	class TCPClient: public std::enable_shared_from_this<TCPClient>
 	{
+	public:
+		static const char* SDKVersion;
+
+	private:
 		enum class ConnStatus
 		{
 			NoConnected,
