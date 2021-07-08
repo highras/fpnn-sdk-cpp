@@ -10,17 +10,17 @@
 
 + 动态配置：
 
-	请参见 [ClientEngine](ClientEngine.md) 相关接口。
+	请参见 [ClientEngine](APIs/ClientEngine.md) 相关接口。
 
 TCP & UDP 客户端：
 
 + 动态配置：
 
-	通用配置请参见 [Client](Client.md) 相关接口；
+	通用配置请参见 [Client](APIs/Client.md) 相关接口；
 
-	TCP 特有配置请参见 [TCPClient](TCPClient.md) 相关接口；
+	TCP 特有配置请参见 [TCPClient](APIs/TCPClient.md) 相关接口；
 
-	UDP 特有配置请参见 [UDPClient](UDPClient.md) 相关接口。
+	UDP 特有配置请参见 [UDPClient](APIs/UDPClient.md) 相关接口。
 
 ### 当前 UDP 配置性能基准
 
