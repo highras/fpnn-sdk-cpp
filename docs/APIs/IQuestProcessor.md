@@ -275,7 +275,7 @@ IQuestProcessor 为链接事件和 Server Push 请求的处理模块的基类。
 
 * **`const FPReaderPtr args`**
 
-	非法请求所含数据的读取器。参见 [FPQReader](FPReader.me#FPQReader)。
+	非法请求所含数据的读取器。参见 [FPQReader](FPReader.md#FPQReader)。
 
 * **`const FPQuestPtr quest`**
 
@@ -316,7 +316,7 @@ Server Push 请求处理函数签名原型。
 
 * **`const FPReaderPtr`**
 
-	Server Push 请求所含数据的读取器。参见 [FPQReader](FPReader.me#FPQReader)。
+	Server Push 请求所含数据的读取器。参见 [FPQReader](FPReader.md#FPQReader)。
 
 * **`const FPQuestPtr`**
 
