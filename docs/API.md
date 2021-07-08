@@ -18,7 +18,7 @@
 
 #### FPNN 应答 [FPAnswer](APIs/FPAnswer.md)
 
-#### FPNN 消息读取模块 [FPReader](APIs/FPRader.md)
+#### FPNN 消息读取模块 [FPReader](APIs/FPReader.md)
 
 #### FPNN 消息生成模块 [FPWriter](APIs/FPWriter.md)
 
