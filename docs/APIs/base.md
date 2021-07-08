@@ -552,7 +552,7 @@ FPNN 异常对象。SDK 中，个别 API 可能会抛出该异常。
 
 Hash 函数对象。具体请参见代码文件。
 
-### [hashint.h](https://github.com/highras/fpnn-sdk-cpp/blob/master/src/base/hashhint.h)
+### [hashint.h](https://github.com/highras/fpnn-sdk-cpp/blob/master/src/base/hashint.h)
 
 整型类型 hash 函数。
 
