@@ -21,7 +21,7 @@ namespace fpnn
 	//=================================================================//
 	class BasicAnswerCallback: public ITaskThreadPool::ITask
 	{
-		int64_t _sendTime;
+		int64_t _expiredTime;
 
 	public:
 		virtual ~BasicAnswerCallback() {}
@@ -29,8 +29,8 @@ namespace fpnn
 		virtual void fillResult(FPAnswerPtr answer, int errorCode) = 0;
 		virtual bool syncedCallback() { return false; }
 		
-		void updateSendTime(int64_t sendTime) { _sendTime = sendTime; }
-		int64_t sendTime() { return _sendTime; }
+		void updateExpiredTime(int64_t expiredTime) { _expiredTime = expiredTime; }
+		int64_t expiredTime() { return _expiredTime; }
 	};
 
 	//=================================================================//

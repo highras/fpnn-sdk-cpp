@@ -13,6 +13,7 @@
 #include "NetworkUtility.h"
 #include "TimeUtil.h"
 #include "TCPClient.h"
+#include "UDPClient.h"
 #include "ClientEngine.h"
 
 using namespace fpnn;
@@ -52,7 +53,8 @@ ClientEngine::ClientEngine(const ClientEngineInitParams *params): _running(true)
 
 	_logHolder = FPLog::instance();
 
-	_questTimeout = params->globalTimeoutSeconds * 1000;
+	_connectTimeout = params->globalConnectTimeoutSeconds * 1000;
+	_questTimeout = params->globalQuestTimeoutSeconds * 1000;
 
 	if (pipe(_notifyFds) != 0)	//-- Will failed when current processor using to many fds, or the system limitation reached.
 		LOG_FATAL("ClientEngine create pipe for notification failed.");
@@ -80,40 +82,38 @@ ClientEngine::~ClientEngine()
 	close(_notifyFds[0]);
 }
 
-bool ClientEngine::join(const TCPClientConnection* connection)
+bool ClientEngine::join(const BasicConnection* connection, bool waitForSending)
 {
 	int socket = connection->socket();
-	if (!nonblockedFd(socket))
+	if (socket >= FD_SETSIZE)
 	{
-		LOG_ERROR("Change socket to non-blocked failed. %s", connection->_connectionInfo->str().c_str());
+		LOG_ERROR("New connection socket %d is large than FD_SETSIZE %d, new connection is refused. %s",
+			socket, FD_SETSIZE, connection->_connectionInfo->str().c_str());
 		return false;
 	}
-	_connectionMap.insert(socket, (TCPClientConnection*)connection);
 
-	bool rev = true;
+	_connectionMap.insert(socket, (BasicConnection*)connection);
+
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
-		if (_newSocketSet.size() < FD_SETSIZE)
+
+		_newSocketSet.insert(socket);
+		_newSocketSetChanged = true;
+
+		if (waitForSending)
 		{
-			_newSocketSet.insert(socket);
-			_newSocketSetChanged = true;
+			_waitWriteSet.insert(socket);
+			_waitWriteSetChanged = true;
 		}
-		else
-			rev = false;
 	}
 
-	if (rev)
-	{
-		int count = (int)write(_notifyFds[1], this, 4);
-		(void)count;
-	}
-	else
-		_connectionMap.remove(socket);
-
-	return rev;
+	int count = (int)write(_notifyFds[1], this, 4);
+	(void)count;
+	
+	return true;
 }
 
-bool ClientEngine::waitSendEvent(const TCPClientConnection* connection)
+bool ClientEngine::waitSendEvent(const BasicConnection* connection)
 {
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
@@ -126,7 +126,7 @@ bool ClientEngine::waitSendEvent(const TCPClientConnection* connection)
 	return true;
 }
 
-void ClientEngine::quit(const TCPClientConnection* connection)
+void ClientEngine::quit(const BasicConnection* connection)
 {
 	int socket = connection->socket();
 	_connectionMap.remove(socket);
@@ -141,16 +141,28 @@ void ClientEngine::quit(const TCPClientConnection* connection)
 	(void)count;
 }
 
-void ClientEngine::sendData(int socket, uint64_t token, std::string* data)
+void ClientEngine::sendTCPData(int socket, uint64_t token, std::string* data)
 {
-	if (!_connectionMap.sendData(socket, token, data))
+	if (!_connectionMap.sendTCPData(socket, token, data))
 	{
 		delete data;
-		LOG_ERROR("Data not send at socket %d. socket maybe closed.", socket);
+		LOG_ERROR("TCP data not send at socket %d. socket maybe closed.", socket);
 	}
 }
 
-void ClientEngine::clearConnectionQuestCallbacks(TCPClientConnection* connection, int errorCode)
+void ClientEngine::sendUDPData(int socket, uint64_t token, std::string* data, int64_t expiredMS, bool discardable)
+{
+	if (expiredMS == 0)
+		expiredMS = slack_real_msec() + _questTimeout;
+
+	if (!_connectionMap.sendUDPData(socket, token, data, expiredMS, discardable))
+	{
+		delete data;
+		LOG_WARN("UDP data not send at socket %d. socket maybe closed.", socket);
+	}
+}
+
+void ClientEngine::clearConnectionQuestCallbacks(BasicConnection* connection, int errorCode)
 {
 	for (auto callbackPair: connection->_callbackMap)
 	{
@@ -168,21 +180,57 @@ void ClientEngine::clearConnectionQuestCallbacks(TCPClientConnection* connection
 	// connection->_callbackMap.clear(); //-- If necessary.
 }
 
+void ClientEngine::closeUDPConnection(UDPClientConnection* connection)
+{
+	quit(connection);
+
+	UDPClientPtr client = connection->client();
+	if (client)
+	{
+		client->clearConnectionQuestCallbacks(connection, FPNN_EC_CORE_CONNECTION_CLOSED);
+		client->willClose(connection, false);
+	}
+	else
+	{
+		clearConnectionQuestCallbacks(connection, FPNN_EC_CORE_CONNECTION_CLOSED);
+
+		std::shared_ptr<ClientCloseTask> task(new ClientCloseTask(connection->questProcessor(), connection, false));
+		_callbackPool.wakeUp(task);
+		reclaim(task);
+	}
+}
+
 void ClientEngine::clearConnection(int socket, int errorCode)
 {
-	TCPClientConnection* conn = _connectionMap.takeConnection(socket);
+	BasicConnection* conn = _connectionMap.takeConnection(socket);
 	if (conn == NULL)
 		return;
 
 	_connectionMap.remove(socket);
 	clearConnectionQuestCallbacks(conn, errorCode);
-	
-	TCPClientPtr client = conn->client();
-	if (client)
-		client->willClosed(conn, true);
-	else
+
+	if (conn->connectionType() == BasicConnection::TCPClientConnectionType)
 	{
-		CloseErrorTaskPtr task(new CloseErrorTask(conn, true));
+		TCPClientPtr client = ((TCPClientConnection*)conn)->client();
+		if (client)
+		{
+			client->willClose(conn, false);
+			return;
+		}
+	}
+
+	if (conn->connectionType() == BasicConnection::UDPClientConnectionType)
+	{
+		UDPClientPtr client = ((UDPClientConnection*)conn)->client();
+		if (client)
+		{
+			client->willClose(conn, false);
+			return;
+		}
+	}
+	
+	{
+		std::shared_ptr<ClientCloseTask> task(new ClientCloseTask(conn->questProcessor(), conn, false));
 		_callbackPool.wakeUp(task);
 		reclaim(task);
 	}
@@ -201,11 +249,14 @@ void ClientEngine::clean()
 
 void ClientEngine::processConnectionIO(int fd, bool canRead, bool canWrite)
 {
-	TCPClientConnection* conn = _connectionMap.signConnection(fd);
+	BasicConnection* conn = _connectionMap.signConnection(fd);
 	if (!conn)
 		return;
 
-	TCPClientIOProcessor::processConnectionIO(conn, canRead, canWrite);
+	if (conn->connectionType() == BasicConnection::TCPClientConnectionType)
+		TCPClientIOProcessor::processConnectionIO((TCPClientConnection*)conn, canRead, canWrite);
+	else
+		UDPClientIOProcessor::processConnectionIO((UDPClientConnection*)conn, canRead, canWrite);
 }
 
 void ClientEngine::loopThread()
@@ -287,7 +338,10 @@ void ClientEngine::loopThread()
 			}
 
 			for (auto& csp: connStatus)
+			{
 				processConnectionIO(csp.first, csp.second.canRead, csp.second.canWrite);
+				wantWriteSocket.erase(csp.first);
+			}
 
 			//-- check event flags
 			{
@@ -324,6 +378,9 @@ void ClientEngine::loopThread()
 		}
 		else if (activeCount == -1)
 		{
+			if (errno == EINTR || errno == EFAULT)
+				continue;
+			
 			LOG_ERROR("Unknown Error when select() errno: %d", errno);
 			break;
 		}
@@ -399,29 +456,108 @@ void ClientEngine::timeoutCheckThread()
 {
 	while (_running)
 	{
+		//-- Step 1: UDP period sending check
+
 		int cyc = 100;
+		int udpSendingCheckSyc = 5;
 		while (_running && cyc--)
+		{
+			udpSendingCheckSyc -= 1;
+			if (udpSendingCheckSyc == 0)
+			{
+				udpSendingCheckSyc = 5;
+				std::unordered_set<UDPClientConnection*> invalidOrExpiredConnections;
+				_connectionMap.periodUDPSendingCheck(invalidOrExpiredConnections);
+
+				for (UDPClientConnection* conn: invalidOrExpiredConnections)
+					closeUDPConnection(conn);
+			}
+
 			usleep(10000);
+		}
+
+
+		//-- Step 2: TCP client keep alive
+
+		std::list<TCPClientConnection*> invalidConnections;
+		std::list<TCPClientConnection*> connectExpiredConnections;
+
+		_connectionMap.TCPClientKeepAlive(invalidConnections, connectExpiredConnections);
+		for (auto conn: invalidConnections)
+		{
+			quit(conn);
+			clearConnectionQuestCallbacks(conn, FPNN_EC_CORE_INVALID_CONNECTION);
+
+			TCPClientPtr client = conn->client();
+			if (client)
+			{
+				client->willClose(conn, true);
+			}
+			else
+			{
+				std::shared_ptr<ClientCloseTask> task(new ClientCloseTask(conn->questProcessor(), conn, true));
+				_callbackPool.wakeUp(task);
+				reclaim(task);
+			}
+		}
+
+		for (auto conn: connectExpiredConnections)
+		{
+			quit(conn);
+			clearConnectionQuestCallbacks(conn, FPNN_EC_CORE_INVALID_CONNECTION);
+
+			TCPClientPtr client = conn->client();
+			if (client)
+			{
+				client->connectFailed(conn->_connectionInfo, FPNN_EC_CORE_INVALID_CONNECTION);
+				client->willClose(conn, true);
+			}
+			else
+			{
+				std::shared_ptr<ClientCloseTask> task(new ClientCloseTask(conn->questProcessor(), conn, true));
+				_callbackPool.wakeUp(task);
+				reclaim(task);
+			}
+		}
+
+		//-- Step 3: clean timeouted callbacks
 
 		clearTimeoutQuest();
 		reclaimConnections();
 	}
 }
 
-void CloseErrorTask::run()
+void ClientCloseTask::run()
 {
-	if (_connection->_questProcessor == NULL)
-		return;
+	_executed = true;
 
+	if (_questProcessor)
 	try
 	{
-		_connection->_questProcessor->connectionWillClose(*(_connection->_connectionInfo), _error);
+		if (_connection->connectionType() == BasicConnection::TCPClientConnectionType)
+		{
+			bool requireCallConnectionCannelledEvent;
+			bool callCloseEvent = _connection->getCloseEventCallingPermission(requireCallConnectionCannelledEvent);
+
+			if (callCloseEvent)
+			{
+				_questProcessor->connectionWillClose(*(_connection->_connectionInfo), _error);
+			}
+			else if (requireCallConnectionCannelledEvent)
+			{
+				_questProcessor->connected(*(_connection->_connectionInfo), false);
+			}
+		}
+		else
+		{
+			_questProcessor->connectionWillClose(*(_connection->_connectionInfo), _error);
+		}
 	}
 	catch (const FpnnError& ex){
-		LOG_ERROR("CloseErrorTask::run() function.(%d)%s, connection:%s", ex.code(), ex.what(), _connection->_connectionInfo->str().c_str());
+		LOG_ERROR("ClientCloseTask::run() error:(%d)%s. %s", ex.code(), ex.what(), _connection->_connectionInfo->str().c_str());
 	}
 	catch (...)
 	{
-		LOG_ERROR("Unknown error when calling CloseErrorTask::run() function. %s", _connection->_connectionInfo->str().c_str());
+		LOG_ERROR("Unknown error when calling ClientCloseTask::run() function. %s", _connection->_connectionInfo->str().c_str());
 	}
 }

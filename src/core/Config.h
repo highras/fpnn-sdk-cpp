@@ -6,69 +6,67 @@
 
 namespace fpnn
 {
-/*
------- Used Configs Items ---------
-Config::_max_recv_package_length
+#define FPNN_SDK_VERSION "1.0.0"
 
-*/
-//in second
-//#define FPNN_DEFAULT_QUEST_TIMEOUT (5)
-//#define FPNN_DEFAULT_IDLE_TIMEOUT (60)
 #define FPNN_DEFAULT_MAX_PACKAGE_LEN (8*1024*1024)
-//#define FPNN_PERFECT_CONNECTIONS 100000
+
+//-- UDP max data length without IPv6 jumbogram.
+#define FPNN_UDP_MAX_DATA_LENGTH (65507)
 
 	class Config
 	{
 		public:
 			//global config
+			static std::string _version;
 			static int _max_recv_package_length;
-
-		public:
-			/*
-			//server config
-			static bool _log_server_quest;
-			static bool _log_server_answer;
-			static int16_t _log_server_slow;
-			static bool _server_http_supported;
-			static bool _server_http_close_after_answered;
-			static bool _server_stat;
-			static bool _server_preset_signals;
-			static int32_t _server_perfect_connections;
-			static bool _server_user_methods_force_encrypted;
-			*/
 
 		public:
 			//client config
 			static bool _log_client_quest;
 			static bool _log_client_answer;
 			//static int16_t _log_client_slow;//no used, 
+			static bool _embed_receiveBuffer_freeBySDK;
+
+			class Client
+			{
+			public:
+				class KeepAlive
+				{
+				public:
+					static bool defaultEnable;
+					static int pingInterval;			//-- In milliseconds
+					static int maxPingRetryCount;
+				};
+			};
 
 		public:
-			//static void initProtoClientVaribles();
-			//static void initProtoServerVaribles();
+			class UDP
+			{
+			public:
+				static int _LAN_MTU;
+				static int _internet_MTU;
+				static int _heartbeat_interval_seconds;
+				static uint32_t _disordered_seq_tolerance;
+				static uint32_t _disordered_seq_tolerance_before_first_package_received;
+				static uint64_t _arq_reAck_interval_milliseconds;
+				static uint64_t _arq_seqs_sync_interval_milliseconds;
+				static int _max_cached_uncompleted_segment_package_count;
+				static int _max_cached_uncompleted_segment_seconds;
+				static int _max_untransmitted_seconds;
+				static size_t _arq_urgent_seqs_sync_triggered_threshold;
+				static int64_t _arq_urgnet_seqs_sync_interval_milliseconds;
 
-			/*static inline void ServerQuestLog(const FPQuestPtr quest, const std::string& ip, uint16_t port){
-				if(Config::_log_server_quest){
-					UXLOG("SVR.QUEST","%s:%d Q=%s", ip.c_str(), port, quest->info().c_str());
-				}
-			}
+				static size_t _unconfiremed_package_limitation;
+				static size_t _max_package_sent_limitation_per_connection_second;
+				static int _max_resent_count_per_call;
 
-			static inline void ServerAnswerAndSlowLog(const FPQuestPtr quest, const FPAnswerPtr answer, const std::string& ip, uint16_t port){
-				if(Config::_log_server_answer){
-					UXLOG("SVR.ANSWER","%s:%d A=%s", ip.c_str(), port, answer->info().c_str());
-				} 
+				static int _max_tolerated_milliseconds_before_first_package_received;
+				static int _max_tolerated_milliseconds_before_valid_package_received;
+				static int _max_tolerated_count_before_valid_package_received;
+			};
 
-				if(Config::_log_server_slow > 0){
-					int32_t cost = answer->timeCost();
-					if(cost >= Config::_log_server_slow){
-						UXLOG("SVR.SLOW","%s:%d C:%d Q=%s A=%s", ip.c_str(), port, cost, quest->info().c_str(), answer->info().c_str());
-					}
-				}
+		public:
 
-				if(Config::_server_stat){
-					Statistics::stat(quest->method(), answer->status(), answer->timeCost());
-				}
-			}*/
 			static inline void ClientQuestLog(const FPQuestPtr quest, const std::string& ip, uint16_t port){
 				if(Config::_log_client_quest){
 					UXLOG("CLI.QUEST","%s:%d Q=%s", ip.c_str(), port, quest->info().c_str());
@@ -86,6 +84,11 @@ Config::_max_recv_package_length
 						UXLOG("CLI.SLOW","%s:%d C:%d Q=%s A=%s", ip.c_str(), port, cost, quest->info().c_str(), answer->info().c_str());
 					}
 				}*/
+			}
+
+			static inline void embed_ConfigReceiveBufferAutoFree(bool autoFree)
+			{
+				_embed_receiveBuffer_freeBySDK = autoFree;
 			}
 	};
 }

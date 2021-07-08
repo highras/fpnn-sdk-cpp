@@ -43,7 +43,7 @@ bool UnencryptedReceiver::recv(int fd, int length)
 				return (_curr == 0);
 			}
 
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)
 			{
 				if (readBytes > 0)
 					_curr += readBytes;
@@ -165,4 +165,26 @@ bool UnencryptedReceiver::fetch(FPQuestPtr& quest, FPAnswerPtr& answer)
 	_bodyBuffer = NULL;
 
 	return rev;
+}
+
+bool UnencryptedReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+{
+	if (_curr != _total)
+		return false;
+
+	int dataLen = _total;
+	memcpy(_bodyBuffer, _header, FPMessage::_HeaderLength);
+
+	_currBuf = _header;
+	_curr = 0;
+	_total = FPMessage::_HeaderLength;
+
+	delegate(connectionId, _bodyBuffer, dataLen);
+
+	if (Config::_embed_receiveBuffer_freeBySDK)
+		free(_bodyBuffer);
+	
+	_bodyBuffer = NULL;
+
+	return true;
 }

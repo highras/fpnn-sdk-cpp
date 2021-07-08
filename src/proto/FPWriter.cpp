@@ -31,13 +31,11 @@ void FPWriter::paramFormat(const std::string& k, const char *fmt, ...){
 
 void FPWriter::paramFile(const char *k, const char *file){
 	if(!k || !file){
-		LOG_ERROR("NULL k or filename");
-		return;
+		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_UNKNOWN_ERROR, "NULL k or filename");
 	}
 	FileSystemUtil::FileAttrs attrs;
 	if(!FileSystemUtil::readFileAndAttrs(file, attrs)){
-		LOG_ERROR("Can not get file attrs, name: %s", file);
-		return;
+		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_FILE_NOT_EXIST, "Can not get file attrs, name: %s", file);
 	}
 
 	paramMap(k, 8);
@@ -102,8 +100,19 @@ FPQuestPtr FPQWriter::emptyQuest(const std::string& method, bool oneway, FPMessa
 }
 
 FPAnswerPtr FPAWriter::CloneAnswer(const FPAnswerPtr answer, const FPQuestPtr quest){
+	if(!answer) return FpnnErrorAnswer(quest, FPNN_EC_CORE_SEND_ERROR, "unknown clone error.");
 	FPAnswerPtr an(new FPAnswer(quest));
+	an->setSS(answer->status());
 	std::string payload = answer->payload();
+	an->setPayload(payload);
+	an->setPayloadSize(payload.size());
+	an->setCTime(slack_real_msec());
+	return an;
+}
+
+FPAnswerPtr FPAWriter::CloneAnswer(const std::string& payload, const FPQuestPtr quest){
+	FPAnswerPtr an(new FPAnswer(quest));
+	an->setSS(FPAnswer::FP_ST_OK);
 	an->setPayload(payload);
 	an->setPayloadSize(payload.size());
 	an->setCTime(slack_real_msec());
@@ -121,16 +130,15 @@ FPAnswerPtr FPAWriter::take(){
 	return a;
 }
 
-FPAnswerPtr FPAWriter::errorAnswer(const FPQuestPtr quest, int code, const std::string& ex, const std::string& raiser){
+FPAnswerPtr FPAWriter::errorAnswer(const FPQuestPtr quest, int32_t code, const std::string& ex, const std::string& raiser){
 	return errorAnswer(quest, code, ex.c_str(), raiser.c_str());
 }
 
-FPAnswerPtr FPAWriter::errorAnswer(const FPQuestPtr quest, int code, const char* ex, const char* raiser){
+FPAnswerPtr FPAWriter::errorAnswer(const FPQuestPtr quest, int32_t code, const char* ex, const char* raiser){
 	FPAWriter aw(3, FPAnswer::FP_ST_ERROR, quest);
 	aw.param("code", code);
 	aw.param("ex", ex);
 	aw.param("raiser", raiser);
-	LOG_ERROR("ERROR ANSWER: code(%d), exception(%s), raiser(%s), QUEST(%s)", code, ex, raiser, quest->info().c_str());
 	return aw.take();
 }
 

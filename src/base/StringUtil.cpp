@@ -10,7 +10,7 @@ char * StringUtil::rtrim(char *s){
 	if (!s)
 		return s;
 
-	len = (int)strlen(s);
+	len = strlen(s);
 	p = &s[len];
 
 	for (--p; p >= s; --p){
@@ -36,6 +36,29 @@ char * StringUtil::ltrim(char *s){
 char * StringUtil::trim(char *s){
 	s = ltrim(s);
 	return rtrim(s);
+}
+
+void StringUtil::softTrim(const char* path, char* &start, char* &end)
+{
+	start = (char *)path;
+	if (!start)
+	{
+		end = NULL;
+		return;
+	}
+
+	while (start && *start != 0 && isspace(*start++));
+
+	end = start;
+	if (*start == 0)
+		return;
+	
+	start -= 1;
+	
+	char *forward = end;
+	while (*forward != 0)
+		if (!isspace(*forward++))
+			end = forward;
 }
 
 std::string& StringUtil::rtrim(std::string& s){
@@ -166,6 +189,28 @@ std::string StringUtil::join(const std::map<std::string, std::string> &v, const 
 using namespace std;
 using namespace StringUtil;
 
+template<typename UNSIGNED_INTEGER_TYPE>
+void testCharMarkMap()
+{
+	const UNSIGNED_INTEGER_TYPE digit = 0x1;
+	const UNSIGNED_INTEGER_TYPE alphaTable = 0x2;
+	const UNSIGNED_INTEGER_TYPE whiteChar = 0x4;
+	const UNSIGNED_INTEGER_TYPE printable = 0x8;
+
+	CharMarkMap<UNSIGNED_INTEGER_TYPE> cmm;
+
+	cmm.init("1234567890", digit | printable);
+	cmm.init("abcdefghigklmnopqrstuvwxyz", alphaTable | printable);
+	cmm.init(" \t", whiteChar | printable);
+	cmm.init("\r\n\b", whiteChar);
+
+	cout<<"check 6 is digit reault "<<cmm.check('6', digit)<<endl;
+	cout<<"check 6 is printable reault "<<cmm.check('6', printable)<<endl;
+	cout<<"check 6 is printable & digit reault "<<cmm.check('6', digit | printable)<<endl;
+	cout<<"check 6 is alphaTable reault "<<cmm.check('6', alphaTable)<<endl;
+	cout<<"check a is whiteChar "<<cmm.check('a', whiteChar)<<endl;
+}
+
 int main(int argc, char **argv)
 {
 	char s[] = "\t \naaabb \n";	
@@ -205,6 +250,12 @@ int main(int argc, char **argv)
 		cout<<*it<<endl;
 	}
 	cout<<"end"<<endl;
+
+	cout<<"testCharMarkMap<uint8_t>():"<<endl;
+	testCharMarkMap<uint8_t>();
+	cout<<"testCharMarkMap<uint32_t>():"<<endl;
+	testCharMarkMap<uint32_t>();
+
 	return 0;
 }
 

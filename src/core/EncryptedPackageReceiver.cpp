@@ -35,7 +35,7 @@ bool EncryptedPackageReceiver::recv(int fd, int length)
 				return (_curr == 0);
 			}
 
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)
 			{
 				if (readBytes > 0)
 					_curr += readBytes;
@@ -148,4 +148,29 @@ bool EncryptedPackageReceiver::fetch(FPQuestPtr& quest, FPAnswerPtr& answer)
 
 	free(buf);
 	return rev;
+}
+
+bool EncryptedPackageReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+{
+	if (_curr != _total)
+		return false;
+
+	int dataLen = _total;
+	char* buf = (char*)malloc(dataLen);
+	_encryptor.decrypt((uint8_t *)buf, _dataBuffer, dataLen);
+
+	free(_dataBuffer);
+	_dataBuffer = NULL;
+
+	_curr = 0;
+	_total = sizeof(uint32_t);
+	_getLength = false;
+	_currBuf = (uint8_t*)&_packageLen;
+
+	delegate(connectionId, buf, dataLen);
+
+	if (Config::_embed_receiveBuffer_freeBySDK)
+		free(buf);
+	
+	return true;
 }

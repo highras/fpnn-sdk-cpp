@@ -3,7 +3,9 @@
 #include <thread>
 #include "msec.c"
 #include "TCPClient.h"
+#include "UDPClient.h"
 #include "IQuestProcessor.h"
+#include "CommandLineUtil.h"
 
 using namespace std;
 using namespace fpnn;
@@ -12,6 +14,7 @@ void showSignDesc()
 {
 	cout<<"Sign:"<<endl;
 	cout<<"    +: establish connection"<<endl;
+	cout<<"    -: establish connection failed"<<endl;
 	cout<<"    ~: close connection"<<endl;
 	cout<<"    #: connection error"<<endl;
 
@@ -40,7 +43,7 @@ class Processor: public IQuestProcessor
 	QuestProcessorClassPrivateFields(Processor)
 
 public:
-	virtual void connected(const ConnectionInfo&) { cout<<"+"; }
+	virtual void connected(const ConnectionInfo&, bool connected) { if (connected) cout<<"+"; else cout<<"-"; }
 	virtual void connectionWillClose(const ConnectionInfo& connInfo, bool closeByError)
 	{
 		closeByError ? cout<<"#" : cout<<"~";
@@ -67,7 +70,7 @@ FPQuestPtr genQuest(){
 	return qw.take();
 }
 
-void testThread(TCPClientPtr client, int count)
+void testThread(ClientPtr client, int count)
 {
 	int act = 0;
 	for (int i = 0; i < count; i++)
@@ -155,7 +158,7 @@ void testThread(TCPClientPtr client, int count)
 	}
 }
 
-void test(TCPClientPtr client, int threadCount, int questCount)
+void test(ClientPtr client, int threadCount, int questCount)
 {
 	cout<<"========[ Test: thread "<<threadCount<<", per thread quest: "<<questCount<<" ]=========="<<endl;
 
@@ -172,15 +175,43 @@ void test(TCPClientPtr client, int threadCount, int questCount)
 	cout<<endl<<endl;
 }
 
+void processEncrypt(TCPClientPtr client)
+{
+	if (CommandLineParser::exist("ecc-pem"))
+	{
+		bool packageMode = CommandLineParser::exist("package");
+		bool reinforce = CommandLineParser::exist("256bits");
+		std::string pemFile = CommandLineParser::getString("ecc-pem");
+		client->enableEncryptorByPemFile(pemFile.c_str(), packageMode, reinforce);
+	}
+}
+
+void showUsage(const char* appName)
+{
+	cout<<"Usage: "<<appName<<" ip port [-ecc-pem ecc-pem-file [-package|-stream] [-128bits|-256bits]]"<<endl;
+	cout<<"Usage: "<<appName<<" ip port -udp"<<endl;
+}
+
 int main(int argc, char* argv[])
 {
-	if (argc != 3)
-	{   
-		cout<<"Usage: "<<argv[0]<<" ip port"<<endl;
+	CommandLineParser::init(argc, argv);
+	std::vector<std::string> mainParams = CommandLineParser::getRestParams();
+	if (mainParams.size() != 2)
+	{
+		showUsage(argv[0]);
 		return 0;
 	}
 
-	TCPClientPtr client = TCPClient::createClient(argv[1], atoi(argv[2]));
+	std::shared_ptr<Client> client;
+	if (CommandLineParser::exist("udp"))
+		client = Client::createUDPClient(mainParams[0], std::stoi(mainParams[1]));
+	else
+	{
+		TCPClientPtr tcpClient = Client::createTCPClient(mainParams[0], std::stoi(mainParams[1]));
+		processEncrypt(tcpClient);
+		client = tcpClient;
+	}
+
 	client->setQuestProcessor(std::make_shared<Processor>());
 
 	showSignDesc();

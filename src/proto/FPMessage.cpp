@@ -7,6 +7,7 @@
 #include "base64.h"
 #include "sha1.h"
 //#include "gzpipe.h"
+#include "hex.h"
 
 using namespace fpnn;
 
@@ -51,6 +52,24 @@ bool FPMessage::isQuest(const char* header){
 	}
 	else 
 		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_METHOD_TYPE, "Unknow mtype:%d", hdr->mtype);
+}
+
+std::string FPMessage::Hex(){
+	char* hexstr = (char*)malloc(_payload.size() * 2 + 1); 
+	if(!hexstr) return "";
+	Hexlify(hexstr, _payload.c_str(), _payload.size());
+	std::string result = std::string(hexstr);
+	free(hexstr);
+	return result;
+}
+
+std::string FPMessage::Hex(const std::string& str){
+	char* hexstr = (char*)malloc(str.size() * 2 + 1); 
+	if(!hexstr) return "";
+	Hexlify(hexstr, str.c_str(), str.size());
+	std::string result = std::string(hexstr);
+	free(hexstr);
+	return result;
 }
 
 std::string FPMessage::json(){
@@ -107,6 +126,7 @@ void FPQuest::_create(const Header& hdr, uint32_t seq, const std::string& method
 }
 
 void FPQuest::_create(const char* data, size_t len){
+	size_t olen = len;
 	if(len < sizeof(_hdr)) 
 		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_INVALID_PACKAGE, "hdr len:%d, but intput len:%d", sizeof(_hdr), len);
 	const char* p = data;
@@ -143,6 +163,9 @@ void FPQuest::_create(const char* data, size_t len){
 	len -= method_len;
 	if(len != payloadSize()) 
 		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_INVALID_PACKAGE, "len is too small:%d", len);
+	if(len <= 0){
+		LOG_ERROR("Invalid Package: %s", Hex(std::string(data, olen)).c_str());
+	}
 	std::string payload = std::string(p, len);
 
 	if(isMsgPack()){
@@ -258,14 +281,17 @@ void FPAnswer::_create(const Header& hdr, uint32_t seq, const std::string& paylo
 void FPAnswer::_create(const char* data, size_t len){
 	//if(!_quest) throw FPNN_ERROR_MSG(FpnnProtoError, "Create answer, But quest is NULL");
 	//if(!_quest->isTwoWay()) FPNN_ERROR_MSG(FpnnProtoError, "Create answer for oneway Message");
+	size_t olen = len;
 	if(len < sizeof(_hdr)) 
 		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_INVALID_PACKAGE, "Len is too small:%d", len);
 	const char* p = data;
 	memcpy(&_hdr, p, sizeof(_hdr));
 	p += sizeof(_hdr);
 	len -= sizeof(_hdr);
-	if(len <= 0) 
+	if(len <= 0){
+		LOG_ERROR("Invalid Package: %s", Hex(std::string(data, olen)).c_str());
 		throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_INVALID_PACKAGE, "Len is too small:%d", len);
+	}
 	_status = ss();
 	if(!isSupportPack()) 
 		throw FPNN_ERROR_CODE_MSG(FpnnProtoError, FPNN_EC_PROTO_NOT_SUPPORTED, "Create answer from raw, But Not Json OR Msgpack");
@@ -329,22 +355,28 @@ std::string* FPAnswer::rawHTTP(){
 		status = 101;
 
 	std::ostringstream header;
-	header <<
-		"HTTP/1.1 "<< status <<" " << httpcode_description(status) << _CRLF <<
-		"Date: " << TimeUtil::getTimeRFC1123() << _CRLF <<
-		"Server: FPNN/1.0" << _CRLF <<
-		"Content-Length: " << len << _CRLF <<
-		"Connection: Keep-Alive" << _CRLF;
-	if(_quest->http_header("Origin").size()){
-		header << "Access-Control-Allow-Origin: *" << _CRLF 
-			<< "Access-Control-Allow-Credentials: true" << _CRLF
-			<< "Access-Control-Allow-Methods: GET, POST" << _CRLF; 
+	header << "HTTP/1.1 "<< status <<" " << httpcode_description(status) << _CRLF;
+	if(websocket.empty())
+	{
+		header <<
+			"Date: " << TimeUtil::getTimeRFC1123() << _CRLF <<
+			"Server: FPNN/1.0" << _CRLF <<
+			"Content-Length: " << len << _CRLF <<
+			"Connection: Keep-Alive" << _CRLF;
+		if(_quest->http_header("Origin").size()){
+			header << "Access-Control-Allow-Origin: *" << _CRLF 
+				<< "Access-Control-Allow-Credentials: true" << _CRLF
+				<< "Access-Control-Allow-Methods: GET, POST" << _CRLF; 
+		}
 	}
-	if(websocket.size() > 0){
+	else {
 		header << "Upgrade: websocket" << _CRLF 
 			<< "Connection: Upgrade" << _CRLF;
 		std::string acceptKey = genWebsocketKey(websocket);
 		header << "Sec-WebSocket-Accept: " << acceptKey << _CRLF;
+		std::string SecWebSocketProtocol = _quest->http_header("Sec-WebSocket-Protocol");
+		if(SecWebSocketProtocol.size())
+			header << "Sec-WebSocket-Protocol: " << SecWebSocketProtocol << _CRLF;
 	}
 	header <<_CRLF;
 
@@ -363,9 +395,9 @@ int64_t FPAnswer::timeCost(){
 
 std::string FPAnswer::info(){
 	std::ostringstream os; 
-	os << "Answer, Status("<<_status<<"),seqID(" << _quest->seqNum() << "),TCP(";
-	os << _quest->isTCP()<<"),Method(";
-	os << _quest->method()<<"),body("<<json()<<")";
+	os << "Answer, Status("<<_status<<"),seqID(" << (_quest ? _quest->seqNum() : 0) << "),TCP(";
+	os << (_quest ? _quest->isTCP() : false) <<"),Method(";
+	os << (_quest ? _quest->method() : "null")<<"),body("<<json()<<")";
 	return os.str();
 }
 
@@ -377,6 +409,6 @@ std::string FPAnswer::genWebsocketKey(const std::string& access){
 	char buf[128] = {0};
 	base64_t b64;
 	base64_init(&b64, (const char *)std_base64.alphabet);
-	int len = base64_encode(&b64, buf, digest, 20, BASE64_AUTO_NEWLINE);
+	int32_t len = base64_encode(&b64, buf, digest, 20, BASE64_AUTO_NEWLINE);
 	return std::string(buf, len);
 }

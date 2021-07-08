@@ -10,6 +10,7 @@
 
 #include "Encryptor.h"
 #include "FPMessage.h"
+#include "embedTypes.h"
 
 namespace fpnn
 {
@@ -30,6 +31,7 @@ namespace fpnn
 		virtual bool isClosed() { return _closed; }
 		virtual bool recvPackage(int fd, bool& needNextEvent) = 0;
 		virtual bool fetch(FPQuestPtr& quest, FPAnswerPtr& answer) = 0;
+		virtual bool embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate) = 0;
 	};
 
 	//================================//
@@ -67,6 +69,7 @@ namespace fpnn
 
 		virtual bool recvPackage(int fd, bool& needNextEvent);
 		virtual bool fetch(FPQuestPtr& quest, FPAnswerPtr& answer);
+		virtual bool embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate);
 	};
 
 	//================================//
@@ -108,6 +111,7 @@ namespace fpnn
 
 		virtual bool recvPackage(int fd, bool& needNextEvent);
 		virtual bool fetch(FPQuestPtr& quest, FPAnswerPtr& answer);
+		virtual bool embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate);
 	};
 
 	//================================//
@@ -139,6 +143,7 @@ namespace fpnn
 
 		virtual bool recvPackage(int fd, bool& needNextEvent);
 		virtual bool fetch(FPQuestPtr& quest, FPAnswerPtr& answer);
+		virtual bool embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate);
 	};
 }
 

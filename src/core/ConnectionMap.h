@@ -10,16 +10,23 @@
 #include "FPMessage.h"
 #include "FPWriter.h"
 #include "AnswerCallbacks.h"
-#include "ClientIOWorker.h"
+#include "TCPClientIOWorker.h"
+#include "UDPClientIOWorker.h"
 
 namespace fpnn
 {
 	class ConnectionMap
 	{
-		std::mutex _mutex;
-		std::unordered_map<int, TCPClientConnection*> _connections;
+		struct TCPClientKeepAliveTimeoutInfo
+		{
+			TCPClientConnection* conn;
+			int timeout;					//-- In milliseconds
+		};
 
-		inline bool sendData(TCPClientConnection* conn, std::string* data)
+		std::mutex _mutex;
+		std::unordered_map<int, BasicConnection*> _connections;
+
+		inline bool sendTCPData(TCPClientConnection* conn, std::string* data)
 		{
 			bool needWaitSendEvent = false;
 			conn->send(needWaitSendEvent, data);
@@ -29,41 +36,73 @@ namespace fpnn
 			return true;
 		}
 
-		inline bool sendQuest(TCPClientConnection* conn, std::string* data, uint32_t seqNum, BasicAnswerCallback* callback)
+		inline bool sendUDPData(UDPClientConnection* conn, std::string* data, int64_t expiredMS, bool discardable)
+		{
+			bool needWaitSendEvent = false;
+			conn->sendData(needWaitSendEvent, data, expiredMS, discardable);
+			if (needWaitSendEvent)
+				conn->waitForSendEvent();
+
+			return true;
+		}
+
+		inline bool sendQuest(BasicConnection* conn, std::string* data, uint32_t seqNum, BasicAnswerCallback* callback, int timeout, bool discardableUDPQuest)
 		{
 			if (callback)
 				conn->_callbackMap[seqNum] = callback;
 
-			bool status = sendData(conn, data);
+			bool status;
+			if (conn->connectionType() == BasicConnection::TCPClientConnectionType)
+				status = sendTCPData((TCPClientConnection*)conn, data);
+			else
+				status = sendUDPData((UDPClientConnection*)conn, data, slack_real_msec() + timeout, discardableUDPQuest);
+
 			if (!status && callback)
 				conn->_callbackMap.erase(seqNum);
 			
 			return status;
 		}
 
-		bool sendQuestWithBasicAnswerCallback(int socket, uint64_t token, FPQuestPtr quest, BasicAnswerCallback* callback, int timeout);
+		void sendTCPClientKeepAlivePingQuest(TCPClientSharedKeepAlivePingDatas& sharedPing, std::list<TCPClientKeepAliveTimeoutInfo>& keepAliveList)
+		{
+			std::unique_lock<std::mutex> lck(_mutex);
+
+			for (auto& node: keepAliveList)
+			{
+				std::string* raw = new std::string(*(sharedPing.rawData));
+				KeepAliveCallback* callback = new KeepAliveCallback(node.conn->_connectionInfo);
+
+				callback->updateExpiredTime(slack_real_msec() + node.timeout);
+				sendQuest(node.conn, raw, sharedPing.seqNum, callback, node.timeout, false);
+				
+				node.conn->updateKeepAliveMS();
+				node.conn->_refCount--;
+			}
+		}
+
+		bool sendQuestWithBasicAnswerCallback(int socket, uint64_t token, FPQuestPtr quest, BasicAnswerCallback* callback, int timeout, bool discardableUDPQuest);
 
 	public:
-		TCPClientConnection* takeConnection(int fd)
+		BasicConnection* takeConnection(int fd)
 		{
 			std::unique_lock<std::mutex> lck(_mutex);
 			auto it = _connections.find(fd);
 			if (it != _connections.end())
 			{
-				TCPClientConnection* conn = it->second;
+				BasicConnection* conn = it->second;
 				_connections.erase(it);
 				return conn;
 			}
 			return NULL;
 		}
 
-		TCPClientConnection* takeConnection(const ConnectionInfo* ci)
+		BasicConnection* takeConnection(const ConnectionInfo* ci)
 		{
 			std::unique_lock<std::mutex> lck(_mutex);
 			auto it = _connections.find(ci->socket);
 			if (it != _connections.end())
 			{
-				TCPClientConnection* conn = it->second;
+				BasicConnection* conn = it->second;
 				if ((uint64_t)conn == ci->token)
 				{
 					_connections.erase(it);
@@ -73,7 +112,7 @@ namespace fpnn
 			return NULL;
 		}
 
-		bool insert(int fd, TCPClientConnection* connection)
+		bool insert(int fd, BasicConnection* connection)
 		{
 			std::unique_lock<std::mutex> lck(_mutex);
 			auto it = _connections.find(fd);
@@ -91,9 +130,9 @@ namespace fpnn
 			_connections.erase(fd);
 		}
 
-		TCPClientConnection* signConnection(int fd)
+		BasicConnection* signConnection(int fd)
 		{
-			TCPClientConnection* connection = NULL;
+			BasicConnection* connection = NULL;
 			std::unique_lock<std::mutex> lck(_mutex);
 			auto it = _connections.find(fd);
 			if (it != _connections.end())
@@ -117,53 +156,111 @@ namespace fpnn
 				fdSet.insert(cmp.first);
 		}
 
-		bool sendData(int socket, uint64_t token, std::string* data)
+		bool sendTCPData(int socket, uint64_t token, std::string* data)
 		{
 			std::unique_lock<std::mutex> lck(_mutex);
 			auto it = _connections.find(socket);
 			if (it != _connections.end())
 			{
-				TCPClientConnection* connection = it->second;
+				TCPClientConnection* connection = (TCPClientConnection*)(it->second);
 				if (token == (uint64_t)connection)
-					return sendData(connection, data);
+					return sendTCPData(connection, data);
+			}
+			return false;
+		}
+
+		bool sendUDPData(int socket, uint64_t token, std::string* data, int64_t expiredMS, bool discardable)
+		{
+			std::unique_lock<std::mutex> lck(_mutex);
+			auto it = _connections.find(socket);
+			if (it != _connections.end())
+			{
+				UDPClientConnection* connection = (UDPClientConnection*)(it->second);
+				if (token == (uint64_t)connection)
+					return sendUDPData(connection, data, expiredMS, discardable);
 			}
 			return false;
 		}
 
 	protected:
-		bool sendQuest(int socket, uint64_t token, std::string* data, uint32_t seqNum, BasicAnswerCallback* callback)
+		bool sendQuest(int socket, uint64_t token, std::string* data, uint32_t seqNum, BasicAnswerCallback* callback, int timeout, bool discardableUDPQuest)
 		{
 			std::unique_lock<std::mutex> lck(_mutex);
 			auto it = _connections.find(socket);
 			if (it != _connections.end())
 			{
-				TCPClientConnection* connection = it->second;
+				BasicConnection* connection = it->second;
 				if (token == (uint64_t)connection)
-					return sendQuest(connection, data, seqNum, callback);
+					return sendQuest(connection, data, seqNum, callback, timeout, discardableUDPQuest);
 			}
 			return false;
 		}
 
 	public:
+		void keepAlive(int socket, bool keepAlive)
+		{
+			std::unique_lock<std::mutex> lck(_mutex);
+			auto it = _connections.find(socket);
+			if (it != _connections.end())
+			{
+				BasicConnection* connection = it->second;
+				if (keepAlive && connection->connectionType() == BasicConnection::UDPClientConnectionType)
+				{
+					((UDPClientConnection*)connection)->enableKeepAlive();
+				}
+			}
+		}
+
+		void setUDPUntransmittedSeconds(int socket, int untransmittedSeconds)
+		{
+			std::unique_lock<std::mutex> lck(_mutex);
+			auto it = _connections.find(socket);
+			if (it != _connections.end())
+			{
+				BasicConnection* connection = it->second;
+				if (connection->connectionType() == BasicConnection::UDPClientConnectionType)
+				{
+					((UDPClientConnection*)connection)->setUntransmittedSeconds(untransmittedSeconds);
+				}
+			}
+		}
+
+		void executeConnectionAction(int socket, std::function<void (BasicConnection* conn)> action)
+		{
+			std::unique_lock<std::mutex> lck(_mutex);
+			auto it = _connections.find(socket);
+			if (it != _connections.end())
+			{
+				BasicConnection* connection = it->second;
+				action(connection);
+			}
+		}
+
+		void periodUDPSendingCheck(std::unordered_set<UDPClientConnection*>& invalidOrExpiredConnections);
+
+	public:
+		void TCPClientKeepAlive(std::list<TCPClientConnection*>& invalidConnections, std::list<TCPClientConnection*>& connectExpiredConnections);
+
+	public:
 		BasicAnswerCallback* takeCallback(int socket, uint32_t seqNum);
 		void extractTimeoutedCallback(int64_t threshold, std::list<std::map<uint32_t, BasicAnswerCallback*> >& timeouted);
-		void extractTimeoutedConnections(int64_t threshold, std::list<TCPClientConnection*>& timeouted);
+		void extractTimeoutedConnections(int64_t threshold, std::list<BasicConnection*>& timeouted);
 
 		/**
 			All SendQuest():
 				If return false, caller must free quest & callback.
 				If return true, don't free quest & callback.
 		*/
-		FPAnswerPtr sendQuest(int socket, uint64_t token, std::mutex* mutex, FPQuestPtr quest, int timeout);
+		FPAnswerPtr sendQuest(int socket, uint64_t token, std::mutex* mutex, FPQuestPtr quest, int timeout, bool discardableUDPQuest = false);
 
-		inline bool sendQuest(int socket, uint64_t token, FPQuestPtr quest, AnswerCallback* callback, int timeout)
+		inline bool sendQuest(int socket, uint64_t token, FPQuestPtr quest, AnswerCallback* callback, int timeout, bool discardableUDPQuest = false)
 		{
-			return sendQuestWithBasicAnswerCallback(socket, token, quest, callback, timeout);
+			return sendQuestWithBasicAnswerCallback(socket, token, quest, callback, timeout, discardableUDPQuest);
 		}
-		inline bool sendQuest(int socket, uint64_t token, FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, int timeout)
+		inline bool sendQuest(int socket, uint64_t token, FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, int timeout, bool discardableUDPQuest = false)
 		{
 			BasicAnswerCallback* t = new FunctionAnswerCallback(std::move(task));
-			if (sendQuestWithBasicAnswerCallback(socket, token, quest, t, timeout))
+			if (sendQuestWithBasicAnswerCallback(socket, token, quest, t, timeout, discardableUDPQuest))
 				return true;
 			else
 			{
@@ -172,6 +269,13 @@ namespace fpnn
 			}
 		}
 
+		/*===============================================================================
+		  Call by framwwork.
+		=============================================================================== */
+		inline bool sendQuest(int socket, uint64_t token, FPQuestPtr quest, BasicAnswerCallback* callback, int timeout, bool discardableUDPQuest = false)
+		{
+			return sendQuestWithBasicAnswerCallback(socket, token, quest, callback, timeout, discardableUDPQuest);
+		}
 	};
 }
 

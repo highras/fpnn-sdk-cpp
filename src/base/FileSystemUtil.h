@@ -22,6 +22,7 @@ namespace fpnn
 		bool fetchFileContentInLines(const std::string& filename, std::vector<std::string>& lines, bool ignoreEmptyLine = true, bool trimLine = true);
 		bool readFileContent(const std::string& file, std::string& content);
 		bool saveFileContent(const std::string& file, const std::string& content);
+		bool appendFileContent(const std::string& file, const std::string& content);
 		
 		bool readFileAttrs(const std::string& file, FileAttrs& attrs);
 		bool setFileAttrs(const std::string& file, const FileAttrs& attrs);

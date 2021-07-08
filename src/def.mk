@@ -8,8 +8,8 @@ CXXFLAGS += -std=c++11
 
 CPPFLAGS += -g -Wall -Werror -fPIC $(OPTIMIZE)
 
-LIBS += $(OPTIMIZE) -rdynamic -lstdc++ -lcurl -lfpnn -lfpproto -lfpbase -lpthread -lz $(LINKARGS)
-#LIBS += $(OPTIMIZE) -rdynamic -static-libstdc++ -lcurl -lfpnn -lfpproto -lfpbase -lpthread $(LINKARGS)
+LIBS += $(OPTIMIZE) -rdynamic -lstdc++ -lfpnn -lfpproto -lfpbase -lpthread -lz $(LINKARGS)
+#LIBS += $(OPTIMIZE) -rdynamic -static-libstdc++ -lfpnn -lfpproto -lfpbase -lpthread $(LINKARGS)
 
 #for apps
 $(EXES_CLIENT): $(OBJS_CLIENT)

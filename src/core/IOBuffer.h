@@ -41,6 +41,18 @@ namespace fpnn
 			if (rev) _receivedPackage += 1;
 			return rev;
 		}
+		inline bool embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+		{
+			bool rev = _receiver->embed_fetchRawData(connectionId, delegate);
+			if (rev) _receivedPackage += 1;
+			return rev; 
+		}
+
+		inline void setMutex(std::mutex* mutex)
+		{
+			_mutex = mutex;
+		}
+
 		inline bool getToken()
 		{
 			std::unique_lock<std::mutex> lck(*_mutex);
@@ -51,6 +63,16 @@ namespace fpnn
 			return true;
 		}
 		inline void returnToken()
+		{
+			std::unique_lock<std::mutex> lck(*_mutex);
+			_token = true;
+		}
+		inline void disableReceiving()
+		{
+			std::unique_lock<std::mutex> lck(*_mutex);
+			_token = false;
+		}
+		inline void allowReceiving()
 		{
 			std::unique_lock<std::mutex> lck(*_mutex);
 			_token = true;
@@ -99,11 +121,28 @@ namespace fpnn
 				delete _encryptor;
 		}
 
+		inline void setMutex(std::mutex* mutex)
+		{
+			_mutex = mutex;
+		}
+
 		/** returned INT: id 0, success, else, is errno. */
 		int send(int fd, bool& needWaitSendEvent, std::string* data = NULL);
 		bool entryEncryptMode(uint8_t *key, size_t key_len, uint8_t *iv, bool streamMode);
 		void encryptAfterFirstPackage() { _encryptAfterFirstPackage = true; }
 		void appendData(std::string* data);
+
+		//-- ONLY for connection connecting completed.
+		inline void disableSending()
+		{
+			std::unique_lock<std::mutex> lck(*_mutex);
+			_sendToken = false;
+		}
+		inline void allowSending()
+		{
+			std::unique_lock<std::mutex> lck(*_mutex);
+			_sendToken = true;
+		}
 	};
 }
 

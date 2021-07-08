@@ -23,6 +23,23 @@ int64_t TimeUtil::curr_msec()
     return (now.tv_sec * 1000 + now.tv_usec / 1000);
 }
 
+std::string TimeUtil::getDateStr(int64_t t, char sep){
+	char buff[32] = {0};
+	struct tm timeInfo;
+	time_t timeValue = (time_t)t;
+	struct tm *tmT = localtime_r(&timeValue, &timeInfo);
+	if (tmT){
+		snprintf(buff, sizeof(buff), "%04d%c%02d%c%02d",
+				tmT->tm_year+1900, sep, tmT->tm_mon+1, sep, tmT->tm_mday);
+	}
+	return std::string(buff);
+}
+
+std::string TimeUtil::getDateStr(char sep){
+    int64_t t = time(NULL);
+	return TimeUtil::getDateStr(t, sep);
+}
+
 /*
 std::string TimeUtil::getTimeStr(int64_t t, char sep){
 	char buff[32] = {0};
@@ -41,12 +58,17 @@ std::string TimeUtil::getTimeStr(char sep){
 	return TimeUtil::getTimeStr(t, sep);
 }
 */
-/*
+
 std::string TimeUtil::getDateTime(int64_t t){
-	char buff[32] = {0};
+	/*
+	* buff[32] is enough, but On Ubuntu server 20 with g++ 9.3.0, it thinks the data maybe truncated.
+	* So, I think the compiler with the ‘__builtin___snprintf_chk' function author is not intelligent.
+	*/
+	char buff[40] = {0};
 
 	struct tm timeInfo;
-	struct tm *tmT = localtime_r(&t, &timeInfo);
+	time_t timeValue = (time_t)t;
+	struct tm *tmT = localtime_r(&timeValue, &timeInfo);
 	if (tmT)
 		snprintf(buff, sizeof(buff), "%04d-%02d-%02d %02d:%02d:%02d",
 				tmT->tm_year+1900, tmT->tm_mon+1, tmT->tm_mday,
@@ -55,9 +77,9 @@ std::string TimeUtil::getDateTime(int64_t t){
 }
 
 std::string TimeUtil::getDateTime(){
-    int64_t t = slack_real_sec();
+    int64_t t = time(NULL);
 	return TimeUtil::getDateTime(t);
-}*/
+}
 
 std::string TimeUtil::getDateTimeMS(int64_t t){
     char buff[40] = {0};

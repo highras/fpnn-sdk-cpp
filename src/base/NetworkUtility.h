@@ -30,6 +30,15 @@ www.baidu.com#80
 bool parseAddress(const std::string& address, std::string& host, int& port);
 bool parseAddress(const std::string& address, std::string& host, int& port, EndPointType& eType);
 bool getIPAddress(const std::string& hostname, std::string& IPAddress, EndPointType& eType);	//-- IPv4 is first.
+
+namespace NetworkUtil
+{
+	bool isPrivateIP(struct sockaddr_in* addr);
+	bool isPrivateIP(struct sockaddr_in6* addr);
+	bool isPrivateIPv4(const std::string& ipv4);
+	bool isPrivateIPv6(const std::string& ipv6);
+}
+
 }
 
 #endif

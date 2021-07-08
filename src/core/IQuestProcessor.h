@@ -4,8 +4,10 @@
 #include <memory>
 #include <sstream>
 #include <unordered_map>
+#include <netinet/in.h>
 #include "FPReader.h"
 #include "FPWriter.h"
+#include "NetworkUtility.h"
 #include "AnswerCallbacks.h"
 #include "ConcurrentSenderInterface.h"
 
@@ -27,17 +29,53 @@ namespace fpnn
 	class ConnectionInfo
 	{
 	private:
+		static std::atomic<uint64_t> uniqueIdBase;
+	private:
+		friend class Client;
 		friend class TCPClient;
+		friend class UDPClient;
 		friend class TCPClientConnection;
+		friend class UDPClientConnection;
 		friend class IQuestProcessor;
 
 		std::mutex* _mutex;		//-- only for sync quest to set answer map.
+		uint64_t _uniqueId;
+		bool _isTCP;
 		bool _isIPv4;
 		bool _encrypted;
+		bool _internalAddress;
 
-		ConnectionInfo(int socket_, int port_, const std::string& ip_, bool isIPv4): _mutex(0), _isIPv4(isIPv4),
-			_encrypted(false), token(0), socket(socket_), port(port_), ip(ip_)
+		//-- Only use for UDP.
+		uint8_t* _socketAddress;
+
+		ConnectionInfo(int socket_, int port_, const std::string& ip_, bool isIPv4): _mutex(0),
+			_isTCP(true), _isIPv4(isIPv4), _encrypted(false), _internalAddress(false), _socketAddress(NULL),
+			token(0), socket(socket_), port(port_), ip(ip_)
 		{
+			if (isIPv4)
+			{
+				_internalAddress = NetworkUtil::isPrivateIPv4(ip);
+			}
+			else
+				_internalAddress = NetworkUtil::isPrivateIPv6(ip);
+
+			_uniqueId = ++uniqueIdBase;
+		}
+
+		void changeToUDP(int newSocket, uint8_t* socketAddress)	//-- UDP Client Used.
+		{
+			_isTCP = false;
+			socket = newSocket;
+			
+			if (_socketAddress)
+				free(_socketAddress);
+
+			_socketAddress = socketAddress;
+		}
+
+		void changeToUDP()
+		{
+			_isTCP = false;
 		}
 
 	public:
@@ -56,12 +94,29 @@ namespace fpnn
 			return ip + ":" + std::to_string(port);
 		}
 
+		inline bool isTCP() const { return _isTCP; }
+		inline bool isUDP() const { return !_isTCP; }
 		inline bool isEncrypted() const { return _encrypted; }
+		inline bool isPrivateIP() const { return _internalAddress; }
+		inline uint64_t uniqueId() const { return _uniqueId; }
 
-		ConnectionInfo(const ConnectionInfo& ci): _mutex(0), _isIPv4(ci._isIPv4),
-			_encrypted(ci._encrypted), token(ci.token),
-			socket(ci.socket), port(ci.port), ip(ci.ip)
+		ConnectionInfo(const ConnectionInfo& ci): _mutex(0), _uniqueId(ci._uniqueId),
+			_isTCP(ci._isTCP), _isIPv4(ci._isIPv4), _encrypted(ci._encrypted),
+			_internalAddress(ci._internalAddress), _socketAddress(NULL),
+			token(ci.token), socket(ci.socket), port(ci.port), ip(ci.ip)
 		{
+			if (ci._socketAddress)
+			{
+				int len = ci._isIPv4 ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+				_socketAddress = (uint8_t*)malloc(len);
+				memcpy(_socketAddress, ci._socketAddress, len);
+			}
+		}
+
+		~ConnectionInfo()
+		{
+			if (_socketAddress)
+				free(_socketAddress);
 		}
 	};
 
@@ -103,6 +158,10 @@ namespace fpnn
 		{
 			return _concurrentSender->sendQuest(_socket, _token, quest, std::move(task), timeout * 1000);
 		}
+
+		virtual FPAnswerPtr sendQuestEx(FPQuestPtr quest, bool discardable, int timeoutMsec = 0);
+		virtual bool sendQuestEx(FPQuestPtr quest, AnswerCallback* callback, bool discardable, int timeoutMsec = 0);
+		virtual bool sendQuestEx(FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, bool discardable, int timeoutMsec = 0);
 	};
 
 	//=================================================================//
@@ -122,17 +181,17 @@ namespace fpnn
 		virtual bool isSent() = 0;
 
 		//-- Extends
-		virtual void cacheTraceInfo(const std::string&, const std::string& raiser = "") = 0;
-		virtual void cacheTraceInfo(const char *, const char* raiser = "") = 0;
+		virtual void cacheTraceInfo(const std::string&) = 0;
+		virtual void cacheTraceInfo(const char *) = 0;
 
-		virtual bool sendErrorAnswer(int code = 0, const std::string& ex = "", const std::string& raiser = "")
+		virtual bool sendErrorAnswer(int code = 0, const std::string& ex = "")
 		{
-			FPAnswerPtr answer = FPAWriter::errorAnswer(getQuest(), code, ex, raiser);
+			FPAnswerPtr answer = FPAWriter::errorAnswer(getQuest(), code, ex);
 			return sendAnswer(answer);
 		}
-		virtual bool sendErrorAnswer(int code = 0, const char* ex = "", const char* raiser = "")
+		virtual bool sendErrorAnswer(int code = 0, const char* ex = "")
 		{
-			FPAnswerPtr answer = FPAWriter::errorAnswer(getQuest(), code, ex, raiser);
+			FPAnswerPtr answer = FPAWriter::errorAnswer(getQuest(), code, ex);
 			return sendAnswer(answer);
 		}
 		virtual bool sendEmptyAnswer()
@@ -196,25 +255,19 @@ namespace fpnn
 				If return false, caller must free quest & callback.
 				If return true, don't free quest & callback.
 		*/
-		virtual FPAnswerPtr sendQuest(const ConnectionInfo& connectionInfo, FPQuestPtr quest, int timeout = 0)
-		{
-			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, connectionInfo._mutex, quest, timeout * 1000);
-		}
-	
-		virtual bool sendQuest(const ConnectionInfo& connectionInfo, FPQuestPtr quest, AnswerCallback* callback, int timeout = 0)
-		{
-			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, quest, callback, timeout * 1000);
-		}
-	
-		virtual bool sendQuest(const ConnectionInfo& connectionInfo, FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, int timeout = 0)
-		{
-			return _concurrentSender->sendQuest(connectionInfo.socket, connectionInfo.token, quest, std::move(task), timeout * 1000);
-		}
+		virtual FPAnswerPtr sendQuest(FPQuestPtr quest, int timeout = 0);
+		virtual bool sendQuest(FPQuestPtr quest, AnswerCallback* callback, int timeout = 0);
+		virtual bool sendQuest(FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, int timeout = 0);
+
+		virtual FPAnswerPtr sendQuestEx(FPQuestPtr quest, bool discardable, int timeoutMsec = 0);
+		virtual bool sendQuestEx(FPQuestPtr quest, AnswerCallback* callback, bool discardable, int timeoutMsec = 0);
+		virtual bool sendQuestEx(FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> task, bool discardable, int timeoutMsec = 0);
 
 		/*===============================================================================
 		  Event Hook. (Common)
 		=============================================================================== */
-		virtual void connected(const ConnectionInfo&) {}
+		virtual void connected(const ConnectionInfo&) = delete;
+		virtual void connected(const ConnectionInfo&, bool connected) {}
 		virtual void connectionWillClose(const ConnectionInfo& connInfo, bool closeByError) {}
 		virtual FPAnswerPtr unknownMethod(const std::string& method_name, const FPReaderPtr args, const FPQuestPtr quest, const ConnectionInfo& connInfo) 
 		{

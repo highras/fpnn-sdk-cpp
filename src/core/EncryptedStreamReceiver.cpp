@@ -43,7 +43,7 @@ bool EncryptedStreamReceiver::recv(int fd, int length)
 				return (_curr == 0);
 			}
 
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ETIMEDOUT)
 			{
 				if (readBytes > 0)
 					_curr += readBytes;
@@ -169,4 +169,29 @@ bool EncryptedStreamReceiver::fetch(FPQuestPtr& quest, FPAnswerPtr& answer)
 
 	free(buf);
 	return rev;
+}
+
+bool EncryptedStreamReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+{
+	if (_curr != _total)
+		return false;
+
+	int dataLen = _total;
+	char* buf = (char*)malloc(dataLen);
+	memcpy(buf, _decHeader, FPMessage::_HeaderLength);
+	_encryptor.decrypt((uint8_t *)buf + FPMessage::_HeaderLength, _bodyBuffer + FPMessage::_HeaderLength, dataLen - FPMessage::_HeaderLength);
+
+	free(_bodyBuffer);
+	_bodyBuffer = NULL;
+
+	_currBuf = _header;
+	_curr = 0;
+	_total = FPMessage::_HeaderLength;
+
+	delegate(connectionId, buf, dataLen);
+
+	if (Config::_embed_receiveBuffer_freeBySDK)
+		free(buf);
+	
+	return true;
 }

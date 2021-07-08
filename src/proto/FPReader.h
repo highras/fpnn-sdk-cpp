@@ -1,5 +1,11 @@
 #ifndef FPReader_h_
 #define FPReader_h_
+
+#if (__GNUC__ >= 8)
+//-- For msgpack & RapidJSON: -Wall will triggered the -Wclass-memaccess with G++ 8 and later.
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+
 #include <sstream>
 #include <typeinfo>
 #include <iostream>
@@ -29,10 +35,10 @@ namespace fpnn{
 					return _find(k);
 				}
 				catch(const std::exception& ex){
-					LOG_ERROR("EXCEPTION:%s, Cannot find object of key:%s. raw data:%s.", ex.what(), k, json().c_str());
+					LOG_ERROR("EXCEPTION: %s, Cannot find object of key: %s, data: %s", ex.what(), k, json().c_str());
 				}
 				catch(...){
-					LOG_ERROR("Cannot find object of key:%s. raw data:%s.", k, json().c_str());
+					LOG_ERROR("Cannot find object of key: %s, data: %s", k, json().c_str());
 				}
 				return _nilObj;
 			}
@@ -48,6 +54,17 @@ namespace fpnn{
 			const msgpack::object& wantObject(const std::string& k){
 				return _find(k.c_str());
 			}
+			bool existKey(const char *k){
+				try{
+					_find(k);
+					return true;
+				}
+				catch(...){}
+				return false;
+			}
+			bool existKey(const std::string& k){
+				return existKey(k.c_str());
+			}
 
 			//the following function will not throw exception
 			template<typename TYPE>
@@ -56,10 +73,10 @@ namespace fpnn{
 						dft = _find(k).as<decltype(dft)>();
 					}
 					catch(const std::exception& ex){
-						//LOG_INFO("EXCEPTION:%s, Cannot find value of key:%s. type:%s, raw data:%s.", ex.what(), k, typeid(dft).name(), json().c_str());
+						//LOG_INFO("EXCEPTION:%s, Cannot find value of key:%s type:%s, raw data:%s", ex.what(), k, typeid(dft).name(), json().c_str());
 					}
 					catch(...){
-						//LOG_WARN("Cannot find value of key:%s. type:%s, raw data:%s.", k, typeid(dft).name(), json().c_str());
+						//LOG_WARN("Cannot find value of key:%s type:%s, raw data:%s", k, typeid(dft).name(), json().c_str());
 					}
 					return dft;
 				}
@@ -93,10 +110,10 @@ namespace fpnn{
 						throw ex;
 					}
 					catch(const std::exception& ex){
-						throw FPNN_ERROR_CODE_FMT(FpnnHTTPError, FPNN_EC_PROTO_TYPE_CONVERT, "Can not convert key:%s to Type:%s", k, typeid(dft).name());
+						throw FPNN_ERROR_CODE_FMT(FpnnHTTPError, FPNN_EC_PROTO_TYPE_CONVERT, "Can not convert key: %s to Type: %s, data: %s", k, typeid(dft).name(), json().c_str());
 					}   
 					catch(...){
-						throw FPNN_ERROR_CODE_FMT(FpnnHTTPError, FPNN_EC_PROTO_UNKNOWN_ERROR, "Unknow error, Want value of key:%s", k);
+						throw FPNN_ERROR_CODE_FMT(FpnnHTTPError, FPNN_EC_PROTO_UNKNOWN_ERROR, "Unknow error, Want value of key: %s, data: %s", k, json().c_str());
 					}   
 				}
 
@@ -123,6 +140,84 @@ namespace fpnn{
 					return dst;
 				} 
 
+			
+			msgpack::type::object_type getObjectType(const char* k){
+				return getObject(k).type;
+			}
+			msgpack::type::object_type getObjectType(const std::string& k){
+				return getObject(k).type;
+			}
+			//get the type of key, if key not exist, return false
+			bool isInt(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::POSITIVE_INTEGER || otype == msgpack::type::NEGATIVE_INTEGER)
+					return true;
+				return false;
+			}
+			bool isInt(const std::string& k)		{ return isInt(k.c_str()); }
+			bool isBool(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::BOOLEAN)
+					return true;
+				return false;
+			}
+			bool isBool(const std::string& k)		{ return isBool(k.c_str()); }
+			bool isDouble(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::FLOAT32 || otype == msgpack::type::FLOAT64 
+						|| otype == msgpack::type::FLOAT
+#if defined(MSGPACK_USE_LEGACY_NAME_AS_FLOAT)
+						|| otype == msgpack::type::DOUBLE
+#endif
+						)
+					return true;
+				return false;
+			}
+			bool isDouble(const std::string& k)		{ return isDouble(k.c_str()); }
+			bool isString(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::STR)
+					return true;
+				return false;
+			}
+			bool isString(const std::string& k)		{ return isString(k.c_str()); }
+			bool isBinary(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::BIN)
+					return true;
+				return false;
+			}
+			bool isBinary(const std::string& k)		{ return isBinary(k.c_str()); }
+			bool isArray(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::ARRAY)
+					return true;
+				return false;
+			}
+			bool isArray(const std::string& k)		{ return isArray(k.c_str()); }
+			bool isMap(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::MAP)
+					return true;
+				return false;
+			}
+			bool isMap(const std::string& k)		{ return isMap(k.c_str()); }
+			bool isExt(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::EXT)
+					return true;
+				return false;
+			}
+			bool isExt(const std::string& k)		{ return isExt(k.c_str()); }
+			//TODO
+			bool isNil(const char* k){ 
+				msgpack::type::object_type otype = getObjectType(k);
+				if(otype == msgpack::type::NIL)
+					return true;
+				return false;
+			}
+			bool isNil(const std::string& k)		{ return isNil(k.c_str()); }
+
 		public:
 			FPReader(const std::string& payload){
 				unpack(payload.data(), payload.size());
@@ -132,7 +227,7 @@ namespace fpnn{
 			}
 			FPReader(const msgpack::object& obj):_object(obj){
 				if(_object.type != msgpack::type::MAP) 
-					throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_MAP_VALUE, "NOT a MAP object:%d", _object.type);
+					throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_MAP_VALUE, "NOT a MAP object: %s", json().c_str());
 			}
 			virtual ~FPReader() {}
 		public:
@@ -140,14 +235,36 @@ namespace fpnn{
 				throw FPNN_ERROR_CODE_MSG(FpnnProtoError, FPNN_EC_PROTO_NOT_SUPPORTED, "should not call raw");
 			}   
 			std::string json(){
-				return JSONConvert::Msgpack2Json(_object);
+				try{
+					return JSONConvert::Msgpack2Json(_object);
+				}   
+				catch(const std::exception& ex){
+					LOG_ERROR("EXCEPTION:%s", ex.what());
+				}   
+				catch(...){
+					LOG_ERROR("Unknow Exception");
+				}   
+				return "";
 			}
 		private:
 			void unpack(const char* buf, size_t len){
-				_oh = msgpack::unpack(buf, len);
-				_object = _oh.get();
+				try{
+					_oh = msgpack::unpack(buf, len);
+					_object = _oh.get();
+				}   
+				catch(const std::exception& ex){
+					std::string hex = FPMessage::Hex(std::string(buf, len));
+					LOG_ERROR("unpack, exception: %s, len: %d, buf: %s", ex.what(), len, hex.c_str());
+					throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_INVALID_PACKAGE, "Invalid Package, len: %d, buf: %s", len, hex.c_str()); 
+				}   
+				catch(...){
+					std::string hex = FPMessage::Hex(std::string(buf, len));
+					LOG_ERROR("unpack, exception, len: %d, buf: %s", len, hex.c_str());
+					throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_INVALID_PACKAGE, "Invalid Package, len: %d, buf: %s", len, hex.c_str());
+				}   
+
 				if(_object.type != msgpack::type::MAP) 
-					throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_MAP_VALUE, "NOT a MAP object:%d", _object.type);
+					throw FPNN_ERROR_CODE_FMT(FpnnProtoError, FPNN_EC_PROTO_MAP_VALUE, "NOT a MAP object: %s", json().c_str());
 			}
 
 			const msgpack::object& _find(const char* key);
@@ -159,6 +276,7 @@ namespace fpnn{
 			msgpack::object_handle _oh;
 			msgpack::object _object;
 			static msgpack::object _nilObj;
+			//_nilObj.type == msgpack::type::NIL
 
 			static intmax_t _intDef;
 			static uintmax_t _uintDef;

@@ -5,11 +5,30 @@
 #include <atomic>
 #include "msec.c"
 #include "TCPClient.h"
+#include "UDPClient.h"
+#include "CommandLineUtil.h"
 
 using std::cout;
 using std::cerr;
 using std::endl;
 using namespace fpnn;
+
+class QuestProcessor: public IQuestProcessor
+{
+	QuestProcessorClassPrivateFields(QuestProcessor)
+	
+public:
+	virtual void connected(const ConnectionInfo& ci, bool connected)
+	{
+		cout<<"client "<<ci.token<<" socket "<<ci.socket<<" connect "<<(connected ? "successful" : "failed")<<"."<<endl;
+	}
+	virtual void connectionWillClose(const ConnectionInfo& ci, bool closeByError)
+	{
+		cout<<"client "<<ci.token<<" socket "<<ci.socket<<" closed by "<<(closeByError ? "error" : "normal")<<"."<<endl;
+	}
+
+	QuestProcessorClassBasicPublicFuncs
+};
 
 FPQuestPtr QWriter(const char* method, bool oneway, FPMessage::FP_Pack_Type def_ptype){
     FPQWriter qw(6,method, oneway, def_ptype);
@@ -67,6 +86,8 @@ public:
 		if (pqps == 0)
 			pqps = 1;
 		int remain = _qps - pqps * _thread_num;
+		if (remain < 0)
+			remain = 0;
 
 		for(int i = 0 ; i < _thread_num; i++)
 			_threads.push_back(std::thread(&Tester::test_worker, this, pqps));
@@ -140,9 +161,17 @@ void Tester::test_worker(int qps)
 
 	cout<<"-- qps: "<<qps<<", usec: "<<usec<<endl;
 
-	TCPClientPtr client = TCPClient::createClient(_ip, _port);
-
-	client->connect();
+	std::shared_ptr<Client> client;
+	if (CommandLineParser::exist("udp"))
+	{
+		client = Client::createUDPClient(_ip, _port);		
+		client->setQuestProcessor(std::make_shared<QuestProcessor>());
+	}
+	else
+	{
+		client = Client::createTCPClient(_ip, _port);
+		client->connect();
+	}
 
 	while (true)
 	{
@@ -189,13 +218,15 @@ void Tester::test_worker(int qps)
 
 int main(int argc, char* argv[])
 {
-	if (argc != 5)
+	CommandLineParser::init(argc, argv);
+	std::vector<std::string> mainParams = CommandLineParser::getRestParams();
+	if (mainParams.size() != 4)
 	{
-		cout<<"Usage: "<<argv[0]<<" ip port connections total-qps"<<endl;
+		cout<<"Usage: "<<argv[0]<<" ip port connections total-qps [-udp]"<<endl;
 		return 0;
 	}
 
-	Tester tester(argv[1], atoi(argv[2]), atoi(argv[3]), atoi(argv[4]));
+	Tester tester(mainParams[0].c_str(), std::stoi(mainParams[1]), std::stoi(mainParams[2]), std::stoi(mainParams[3]));
 
 	tester.launch();
 	tester.showStatistics();

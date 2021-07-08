@@ -7,9 +7,9 @@ using namespace fpnn;
 class EventProcessor : public IQuestProcessor
 {
 public:
-	virtual void connected(const ConnectionInfo& connInfo)
+	virtual void connected(const ConnectionInfo& connInfo, bool connected)
 	{
-		cout<<"Connected to "<<connInfo.endpoint()<<endl;
+		cout<<"Connected to "<<connInfo.endpoint()<<" "<<(connected ? "successful" : "failed")<<endl;
 	}
 
 	virtual void connectionWillClose(const ConnectionInfo& connInfo, bool closeByError)

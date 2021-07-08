@@ -1,5 +1,11 @@
 #ifndef FPMessage_h_
 #define FPMessage_h_
+
+#if (__GNUC__ >= 8)
+//-- For msgpack & RapidJSON: -Wall will triggered the -Wclass-memaccess with G++ 8 and later.
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+
 #include <memory>
 #include <atomic>
 #include <msgpack.hpp>
@@ -7,6 +13,7 @@
 #include "FpnnError.h"
 #include "FPLog.h"
 #include "msec.h"
+#include "StringUtil.h"
 
 namespace fpnn{
 
@@ -101,11 +108,13 @@ namespace fpnn{
 			const std::string& payload() const					{ return _payload; }
 			//get payload json string
 			std::string json();
+			std::string Hex();
 			void printHttpInfo();
 
 			int64_t ctime() const								{ return _ctime; }
 			void    setCTime(int64_t ctime)						{ _ctime = ctime; }
 		public:
+			static std::string Hex(const std::string& str);
 			static uint32_t HeaderRemain()					{ return sizeof(Header) - sizeof(fpnn_magic);}
 			static uint32_t BodyLen(const char* header);
 			static bool isQuest(const char* header);
@@ -173,12 +182,19 @@ namespace fpnn{
 					return _emptyString;
 				if(strcasecmp(http_header("Upgrade").c_str(), "websocket") != 0)
 					return _emptyString;
-				if(strcasecmp(http_header("Connection").c_str(), "Upgrade") != 0)
-					return _emptyString;
 				if(http_header("Sec-WebSocket-Version") != "13")
+					return _emptyString;
+				std::string connection = http_header("Connection");
+				std::set<std::string> elems;
+				elems = StringUtil::split(connection, ",; ", elems);
+				if(elems.find("Upgrade") == elems.end())
 					return _emptyString;
 				return http_header("Sec-WebSocket-Key");
 			}
+            StringMap http_uri_all() { return http_infos_all("u_"); }
+            StringMap http_cookie_all() { return http_infos_all("c_"); }
+            StringMap http_header_all() { return http_infos_all("h_"); }
+
 		private:
 			const std::string& http_infos(const std::string& k){
 				if(!_httpInfos) 
@@ -187,6 +203,16 @@ namespace fpnn{
 				if(it == _httpInfos->end()) return _emptyString;
 				return it->second;
 			}
+
+            StringMap http_infos_all(const std::string& prefix){
+                StringMap infos;
+                for (auto& kv: *_httpInfos) {
+                    int32_t prefixLen = prefix.length();
+                    if (kv.first.substr(0, prefixLen) == prefix)
+                        infos[kv.first.substr(prefixLen)] = kv.second;
+                }
+                return infos;
+            }
 
 		protected:
 			static uint32_t nextSeqNum(){

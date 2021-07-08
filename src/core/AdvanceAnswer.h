@@ -18,7 +18,6 @@ namespace fpnn
 		ConnectionInfoPtr _connectionInfo;
 		FPQuestPtr _quest;
 		std::string _traceInfo;
-		std::string _traceRaiser;
 		bool _sent;
 
 	public:
@@ -30,13 +29,13 @@ namespace fpnn
 			if (_sent == false)
 			{
 				const char* defaultErrorInfo = "Answer is lost in normal logic. The error answer is sent for instead.";
-				FPAnswerPtr errAnswer = FPAWriter::errorAnswer(_quest, FPNN_EC_CORE_UNKNOWN_ERROR, _traceInfo.empty() ? defaultErrorInfo : _traceInfo, _traceRaiser);
+				FPAnswerPtr errAnswer = FPAWriter::errorAnswer(_quest, FPNN_EC_CORE_UNKNOWN_ERROR, _traceInfo.empty() ? defaultErrorInfo : _traceInfo);
 				try
 				{
 					sendAnswer(errAnswer);
 				}
 				catch (...) {
-					LOG_ERROR("AsyncAnswer send default answer failed. trace info: %s, trace raiser: %s", _traceInfo.c_str(), _traceRaiser.c_str());
+					LOG_ERROR("AsyncAnswer send default answer failed. trace info: %s", _traceInfo.c_str());
 				}
 
 			}
@@ -51,12 +50,19 @@ namespace fpnn
 			try
 			{
 				std::string* raw = answer->raw();
-				_concurrentSender->sendData(_connectionInfo->socket, _connectionInfo->token, raw);
+				
+				if (_connectionInfo->isTCP())
+					_concurrentSender->sendTCPData(_connectionInfo->socket, _connectionInfo->token, raw);
+				else
+				{
+					int64_t expiredMS = ClientEngine::instance()->getQuestTimeout() * 1000 + slack_real_msec();
+					_concurrentSender->sendUDPData(_connectionInfo->socket, _connectionInfo->token, raw, expiredMS, false);
+				}
 				_sent = true;
 				return true;
 			}
 			catch (const FpnnError& ex){
-				//sendData will not throw any exception, so if run to here, raw throw an exception
+				//sendTCPData will not throw any exception, so if run to here, raw throw an exception
 				throw ex;
 			}
 			catch (...)
@@ -68,15 +74,13 @@ namespace fpnn
 		}
 		virtual bool isSent() { return _sent; }
 
-		virtual void cacheTraceInfo(const std::string& ex, const std::string& raiser = "")
+		virtual void cacheTraceInfo(const std::string& ex)
 		{
 			_traceInfo = ex;
-			_traceRaiser = raiser;
 		}
-		virtual void cacheTraceInfo(const char * ex, const char* raiser = "")
+		virtual void cacheTraceInfo(const char * ex)
 		{
 			_traceInfo = ex;
-			_traceRaiser = raiser;
 		}
 	};
 }

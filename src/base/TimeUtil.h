@@ -14,8 +14,13 @@ namespace TimeUtil{
 	std::string getTimeRFC1123();
 
 	//example: "yyyy-MM-dd HH:mm:ss"
-	//std::string getDateTime();
-	//std::string getDateTime(int64_t t);
+	std::string getDateTime();
+	std::string getDateTime(int64_t t);
+
+	//example: "yyyy-MM-dd"
+	//example: "yyyy/MM/dd"
+	std::string getDateStr(char sep = '-');
+	std::string getDateStr(int64_t t, char sep = '-');
 	
 	//example: "yyyy-MM-dd-HH-mm-ss"
 	//example: "yyyy/MM/dd/HH/mm/ss"

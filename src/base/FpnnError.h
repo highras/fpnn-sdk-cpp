@@ -31,18 +31,18 @@ public:
 		 : _file(file), _fun(fun), _line(line), _code(code), _message(msg)
 	{}
 
-	virtual ~FpnnError() throw() 				{}
+	virtual ~FpnnError() noexcept 				{}
 
 	virtual FpnnError* clone() const			{ return new FpnnError(*this); }
 	virtual void do_throw() const				{ throw *this; }
 
-	virtual const char* what() const throw();
+	virtual const char* what() const noexcept;
 
-	const char* file() const throw() 			{ return _file; }
-	const char* fun() const throw() 			{ return _fun; }
-	int32_t line() const throw() 				{ return _line; }
-	int32_t code() const throw() 				{ return _code; }
-	const std::string& message() const throw() 	{ return _message; }
+	const char* file() const noexcept 			{ return _file; }
+	const char* fun() const noexcept 			{ return _fun; }
+	int32_t line() const noexcept 				{ return _line; }
+	int32_t code() const noexcept 				{ return _code; }
+	const std::string& message() const noexcept 	{ return _message; }
 
 	static std::string format(const char *fmt, ...); 
 
@@ -100,6 +100,7 @@ enum {
 	FPNN_EC_PROTO_KEY_NOT_FOUND			= 10009,
 	FPNN_EC_PROTO_TYPE_CONVERT			= 10010,
 	FPNN_EC_PROTO_FILE_SIGN				= 10011,
+	FPNN_EC_PROTO_FILE_NOT_EXIST		= 10012,
 
 	//for core
 	FPNN_EC_CORE_UNKNOWN_ERROR			= 20001,
@@ -116,6 +117,7 @@ enum {
 	FPNN_EC_CORE_INVALID_CONNECTION		= 20012,
 	FPNN_EC_CORE_FORBIDDEN				= 20013,
 	FPNN_EC_CORE_SERVER_STOPPING		= 20014,
+	FPNN_EC_CORE_CANCELLED				= 20015,
 
 	//for other
 	FPNN_EC_ZIP_COMPRESS				= 30001,

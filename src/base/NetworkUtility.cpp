@@ -168,6 +168,64 @@ bool fpnn::getIPAddress(const std::string& hostname, std::string& IPAddress, End
 	return false;
 }
 
+bool fpnn::NetworkUtil::isPrivateIP(struct sockaddr_in* addr)
+{
+	uint8_t *ip = (uint8_t *)&(addr->sin_addr.s_addr);
+	if (ip[0] == 10)
+		return true;
+	
+	if (ip[0] == 172 && (ip[1] > 15 && ip[1] < 32))
+		return true;
+	
+	if (ip[0] == 192 && ip[1] == 168)
+		return true;
+	
+	if (ip[0] == 127 && ip[1] == 0 && ip[2] == 0 && ip[3] == 1)
+		return true;
+
+	return false;
+}
+bool fpnn::NetworkUtil::isPrivateIP(struct sockaddr_in6* addr)
+{
+	if (addr->sin6_addr.s6_addr[0] == 0xfe)
+	{
+		if (addr->sin6_addr.s6_addr[1] == 0x80)
+			return true;
+		else if (addr->sin6_addr.s6_addr[1] == 0xc0)
+			return true;
+	}
+	else
+	{
+		//-- Loopback
+		for (int i = 0; i < 15; i++)
+			if (addr->sin6_addr.s6_addr[i] != 0)
+				return false;
+
+		if (addr->sin6_addr.s6_addr[15] == 1)
+			return true;
+	}
+
+	return false;
+}
+bool fpnn::NetworkUtil::isPrivateIPv4(const std::string& ipv4)
+{
+	struct sockaddr_in addr;
+
+	if (inet_pton(AF_INET, ipv4.c_str(), &addr.sin_addr) != 1)
+		return false;
+
+	return isPrivateIP(&addr);
+}
+bool fpnn::NetworkUtil::isPrivateIPv6(const std::string& ipv6)
+{
+	struct sockaddr_in6 addr;
+
+	if (inet_pton(AF_INET6, ipv6.c_str(), &addr.sin6_addr) != 1)
+		return false;
+
+	return isPrivateIP(&addr);
+}
+
 #ifdef TEST_NETWORK_UTIL
 //g++ -g -DTEST_NETWORK_UTIL NetworkUtility.cpp StringUtil.cpp -std=c++11
 #include <sstream>

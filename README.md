@@ -1,8 +1,6 @@
 # FPNN C++ SDK
 
-**本文档为临时文档，内容从简，未来进一步补全**
-
-## 一、介绍
+## 介绍
 
 FPNN C++ SDK 是独立于 FPNN Framework 的跨平台客户端 SDK。
 
@@ -12,11 +10,51 @@ FPNN C++ SDK 是独立于 FPNN Framework 的跨平台客户端 SDK。
 
 **注意：因实现机制不同，FPNN Framework 客户端部分可以同时运行数万客户端实例，而 SDK 部分不建议超过 1024 个客户端实例。**
 
+### 支持特性
+
+* 支持 IPv4
+* 支持 IPv6
+* 支持 msgPack 编码
+* 支持 json 编码
+* 支持 可选参数
+* 支持 不定类型/可变类型参数
+* 支持 不定长度不定类型参数
+* 支持 接口灰度兼容
+* 支持 Server Push
+* 支持 异步调用
+* 支持 同步调用
+* 支持 应答提前返回
+* 支持 应答异步返回
+* TCP：支持加密链接
+* TCP：支持自动保活
+* UDP：支持自动保活
+* UDP：支持可靠连接
+* UDP：支持可丢弃数据和不可丢弃数据混发
+* UDP：支持乱序重排
+* UDP：支持大数据自动切割 & 自动组装
+* UDP：支持零散数据合并发送
+* UDP：支持毫秒级超时控制
+
+
+### 适配平台
+
+| 操作系统 | 编译器 |
+|---------|-------|
+| CentOS 7 | GCC/G++ 4.8.5 |
+| CentOS 8 | GCC/G++ 8 |
+| Ubuntu 20 | GCC/G++ 9 |
+| MaxOS | Apple clang 12.0.0 |
+| iOS | XCode |
+| Android (NDK) | Android Studio |
+
+** 暂未适配 Windows 平台 **
+
+
+## 使用
 
 ### 安装
 
-+ 本 SDK 使用 C++11 编写，编译器需要支持 C++11 语法。g++ 版本建议使用 4.8.5 或以上。
-+ 本 SDK 部分功能依赖于 [libcurl](https://curl.haxx.se/libcurl/)
+**本 SDK 使用 C++11 编写，编译器需要支持 C++11 语法。g++ 版本建议使用 4.8.5 或以上。**
 
 1. 编译
 
@@ -27,47 +65,37 @@ FPNN C++ SDK 是独立于 FPNN Framework 的跨平台客户端 SDK。
 
 		sh release.sh
 
-### 开发
+### 开发 & 使用
 
-**使用**
-
-FPNN C++ SDK 的使用除少部分细节外，与 FPNN Framework 客户端部分无异。具体可参考：
-
-[FPNN Framework 客户端基础使用说明](https://github.com/highras/fpnn/blob/master/doc/zh-cn/fpnn-client-basic-tutorial.md)
-
-[FPNN Framework 客户端高级使用说明](https://github.com/highras/fpnn/blob/master/doc/zh-cn/fpnn-client-advanced-tutorial.md)
-
-**编译**
-
-如果没有执行 release，请参考 <fpnn-C++-SDK-folder>/tools/Makefile 或 <fpnn-C++-SDK-folder>/tests/Makefile
-
-如果已经执行 release，还可以参考 <fpnn-C++-SDK-folder>/tools/Makefile2
+* [SDK使用向导](docs/guide.md)
+* [样例演示](docs/examples.md)
+* [API手册](docs/API.md)
+* [嵌入模式](docs/embedMode.md)
+* [SDK配置](docs/config.md)
+* [内置工具](docs/tools.md)
+* [测试介绍](docs/tests.md)
+* [错误代码](docs/errorCode.md)
 
 
 ### 目录结构
 
-* **<fpnn-C++-SDK-folder>/src**
+* **\<fpnn-C++-SDK-folder\>/src**
 
-	SDK 核心代码
+	SDK 核心代码。
 
-* **<fpnn-C++-SDK-folder>/examples**
+* **\<fpnn-C++-SDK-folder\>/docs**
 
-	SDK 主要功能演示
+	SDK 文档目录。
 
-* **<fpnn-C++-SDK-folder>/tools**
+* **\<fpnn-C++-SDK-folder\>/examples**
 
-	FPNN Framework 内置工具。可参见：[FPNN Framework 内置工具](https://github.com/highras/fpnn/blob/master/doc/zh-cn/fpnn-tools.md) “运维/管理工具”部分。
+	SDK 主要功能演示。
 
-* **<fpnn-C++-SDK-folder>/test**
+* **\<fpnn-C++-SDK-folder\>/tests**
 
-	并发测试和稳定性测试程序代码。
+	测试程序代码。
 
+* **\<fpnn-C++-SDK-folder\>/tools**
 
-### 平台相关
+	SDK 内置工具。
 
-目前 FPNN C++ SDK 适配的平台为：
-
-+ CentOS
-+ Ubuntu
-+ MacOS X
-+ iOS

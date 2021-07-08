@@ -1,5 +1,11 @@
 #ifndef FPWriter_h_
 #define FPWriter_h_
+
+#if (__GNUC__ >= 8)
+//-- For msgpack & RapidJSON: -Wall will triggered the -Wclass-memaccess with G++ 8 and later.
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+
 #include <sstream>
 #include <iostream>
 #include <string>
@@ -184,6 +190,7 @@ class FPQWriter : public FPWriter{
 class FPAWriter : public FPWriter{
 	public:
 		static FPAnswerPtr CloneAnswer(const FPAnswerPtr answer, const FPQuestPtr quest);
+		static FPAnswerPtr CloneAnswer(const std::string& payload, const FPQuestPtr quest);
 
 	public:
 		FPAWriter(size_t size, const FPQuestPtr quest)
@@ -225,16 +232,25 @@ class FPAWriter : public FPWriter{
 
 		FPAnswerPtr take();
 	public:
-		static FPAnswerPtr errorAnswer(const FPQuestPtr quest, int code = 0, const std::string& ex = "", const std::string& raiser = "");
-		static FPAnswerPtr errorAnswer(const FPQuestPtr quest, int code = 0, const char* ex = "", const char* raiser = "");
+		static FPAnswerPtr errorAnswer(const FPQuestPtr quest, int32_t code = 0, const std::string& ex = "", const std::string& raiser = "");
+		static FPAnswerPtr errorAnswer(const FPQuestPtr quest, int32_t code = 0, const char* ex = "", const char* raiser = "");
 		static FPAnswerPtr emptyAnswer(const FPQuestPtr quest);
-	private:
+	public:
 		FPAWriter(size_t size, uint16_t status, const FPQuestPtr quest)
 			: FPWriter(size), _answer(new FPAnswer(status, quest)){
 		}
 	private:
 		FPAnswerPtr _answer;
 };
+
+#define FpnnErrorAnswer(quest, code, ex) \
+	({  \
+	std::string exx(ex); \
+	FPAWriter aw(2, FPAnswer::FP_ST_ERROR, quest); \
+	aw.param("code", (int32_t)code); \
+	aw.param("ex", exx); \
+	aw.take(); \
+	})
 
 }
 

@@ -9,7 +9,8 @@ namespace fpnn
 	class IConcurrentSender
 	{
 	public:
-		virtual void sendData(int socket, uint64_t token, std::string* data) = 0;
+		virtual void sendTCPData(int socket, uint64_t token, std::string* data) = 0;
+		virtual void sendUDPData(int socket, uint64_t token, std::string* data, int64_t expiredMS, bool discardable) = 0;
 
 		/**
 			All SendQuest():
