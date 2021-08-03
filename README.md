@@ -43,7 +43,7 @@ FPNN C++ SDK 是独立于 FPNN Framework 的跨平台客户端 SDK。
 | CentOS 7 | GCC/G++ 4.8.5 |
 | CentOS 8 | GCC/G++ 8 |
 | Ubuntu 20 | GCC/G++ 9 |
-| MaxOS | Apple clang 12.0.0 |
+| MacOS | Apple clang 12.0.0 |
 | iOS | XCode |
 | Android (NDK) | Android Studio |
 
