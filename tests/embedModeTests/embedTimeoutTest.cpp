@@ -48,20 +48,29 @@ int main(int argc, char* argv[])
 	try
 	{
 		std::mutex locker;
+		std::condition_variable condition;
+
 		std::mutex* lockerPtr = &locker;
-		locker.lock();
-		client.sendQuest(qw.take(), [lockerPtr](FPAnswerPtr answer, int errorCode){
+		std::condition_variable* conditionPtr = &condition;
+		
+		bool launched = client.sendQuest(qw.take(), [lockerPtr, conditionPtr](FPAnswerPtr answer, int errorCode){
 			if (answer)
 				cout<<" -- recv answer: "<<answer->json()<<endl;
 			else
 				cout<<" -- recv error for answer, code: "<<errorCode<<endl;
 
-			lockerPtr->unlock();
+			std::unique_lock<std::mutex> lck(*lockerPtr);
+			conditionPtr->notify_one();
 		}, questTimeout);
-		cout << "send a quest" << endl;
 
-		locker.lock();
-		locker.unlock();
+		if (launched)
+		{
+			cout << "send a quest" << endl;
+			std::unique_lock<std::mutex> lck(locker);
+			condition.wait(lck);
+		}
+		else
+			cout << "send quest failed." << endl;
 	}
 	catch (...)
 	{

@@ -13,6 +13,7 @@ all: $(EXES_CMD) $(EXES_CLIENT)
 
 clean:
 	$(RM) *.o $(EXES_CMD) $(EXES_CLIENT)
+	-$(RM) -rf *.dSYM
 
 
 include ../src/def.mk

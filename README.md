@@ -47,7 +47,7 @@ FPNN C++ SDK 是独立于 FPNN Framework 的跨平台客户端 SDK。
 | iOS | XCode |
 | Android (NDK) | Android Studio |
 
-**暂未适配 Windows 平台**
+**Windows 版本请参见 [FPNN Windows C++ SDK](https://github.com/highras/fpnn-sdk-windows-cpp)**
 
 
 ## 使用
