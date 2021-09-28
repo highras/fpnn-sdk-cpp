@@ -133,7 +133,7 @@ namespace fpnn
 				if (connection->connectionType() == BasicConnection::UDPClientConnectionType)
 				{
 					UDPClientConnection* conn = (UDPClientConnection*)connection;
-					if (conn->invalid() == false)
+					if (conn->isRequireClose() == false)
 					{
 						conn->_refCount++;
 						udpConnections.insert(conn);

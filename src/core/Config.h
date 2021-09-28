@@ -6,7 +6,7 @@
 
 namespace fpnn
 {
-#define FPNN_SDK_VERSION "1.0.0"
+#define FPNN_SDK_VERSION "1.0.1"
 
 #define FPNN_DEFAULT_MAX_PACKAGE_LEN (8*1024*1024)
 
