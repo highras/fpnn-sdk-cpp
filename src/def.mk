@@ -6,7 +6,7 @@ CFLAGS +=
 
 CXXFLAGS += -std=c++11
 
-CPPFLAGS += -g -Wall -Werror -fPIC $(OPTIMIZE)
+CPPFLAGS += -g -Wall -Werror -Wextra -Wno-unused-parameter -Wno-ignored-qualifiers -fPIC $(OPTIMIZE)
 
 LIBS += $(OPTIMIZE) -rdynamic -lstdc++ -lfpnn -lfpproto -lfpbase -lpthread -lz $(LINKARGS)
 #LIBS += $(OPTIMIZE) -rdynamic -static-libstdc++ -lfpnn -lfpproto -lfpbase -lpthread $(LINKARGS)
