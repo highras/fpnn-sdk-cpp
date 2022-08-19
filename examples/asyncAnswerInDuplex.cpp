@@ -36,15 +36,30 @@ public:
 	QuestProcessorClassBasicPublicFuncs
 };
 
-int main(int argc, const char** argv)
+ClientPtr buildClient(int argc, const char** argv)
 {
-	if (argc != 2)
+	if (argc == 2)
+		return TCPClient::createClient(argv[1]);
+
+	if (argc == 3)
 	{
-		cout<<"Usage: "<<argv[0]<<" <endpoint>"<<endl;
-		return 0;
+		if (strcasecmp("-udp", argv[2]) == 0)
+			return UDPClient::createClient(argv[1]);
+
+		if (strcasecmp("-udp", argv[1]) == 0)
+			return UDPClient::createClient(argv[2]);
 	}
 
-	TCPClientPtr client = TCPClient::createClient(argv[1]);
+	cout<<"Usage: "<<argv[0]<<" <endpoint> [-udp]"<<endl;
+	return nullptr;
+}
+
+int main(int argc, const char** argv)
+{
+	ClientPtr client = buildClient(argc, argv);
+	if (!client)
+		return 0;
+	
 	client->setQuestProcessor(std::make_shared<ExampleQuestProcessor>());
 
 

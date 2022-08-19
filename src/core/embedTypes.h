@@ -15,6 +15,7 @@
 *	4. EmbedRecvNotifyDelegate 的 buffer，默认情况下调用者无需分配或者释放。
 *	   如果调用 Config::_embed_receiveBuffer_freeBySDK(bool autoFree)，设置参数 autoFree = false，
 *	   buffer 需要由调用者释放（free）。
+*	   注意：目前仅对 TCP 有效，UDP 均由 SDK 释放。
 *	
 *	极端情况：
 *	5. 由于线程切换和操作系统线程调度的缘故，存在着 Client 释放后的极短时间内，对应的 EmbedRecvNotifyDelegate 依然
@@ -25,9 +26,6 @@
 *			最慢执行耗时。一般 5 毫秒能覆盖大多数情况。）。如果担心 sleep 5 ms 导致当前线程占用，建议可以将其加入上层
 *			业务的资源回收队列，释放 C++ SDK 的 client 实例后，再根据具体情况，异步回收上层语言与 EmbedRecvNotifyDelegate
 *			相关的资源。
-*	6. 对于 TCPClient，如果开启 keepAlive，则在最后的业务 answer 收到后，每隔一个设置的 KeepAliveInterval，
-*		EmbedRecvNotifyDelegate 会收到一个无效的 answer。一般这个 answer 是 C++ SDK TCPClient 底层的 *ping
-*		指令的回包。忽略即可。其他情况下收到的无效的 answer，一般伴随着业务请求的超时。根据业务具体情况处理即可。
 */
 namespace fpnn
 {
@@ -35,6 +33,7 @@ namespace fpnn
 	*	默认 buffer 由 SDK 维护，不需要调用者管理释放。
 	*	如果 Config::_embed_receiveBuffer_freeBySDK(bool autoFree) 参数 autoFree = false，
 	*	buffer 需要由调用者释放（free）。
+	*	注意：目前仅对 TCP 有效，UDP 均由 SDK 释放。
 	*/
 	typedef void (*EmbedRecvNotifyDelegate)(uint64_t connectionId, const void* buffer, int length);
 }

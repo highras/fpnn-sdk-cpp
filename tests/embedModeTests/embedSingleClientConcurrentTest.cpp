@@ -59,6 +59,9 @@ void testThread(DemoBridgeClient* client, int count)
 	int act = 0;
 	for (int i = 0; i < count; i++)
 	{
+		if (i % 200 == 0)
+			cout<<endl;
+
 		int64_t index = (slack_real_msec() + i + ((int64_t)(&i) >> 16)) % 64;
 		if (i >= 10)
 		{
@@ -161,7 +164,7 @@ void test(DemoBridgeClient* client, int threadCount, int questCount)
 
 void showUsage(const char* appName)
 {
-	cout<<"Usage: "<<appName<<" ip port [-udp]"<<endl;
+	cout<<"Usage: "<<appName<<" ip port [-ecc-pem ecc-pem-file] [-udp]"<<endl;
 }
 
 int main(int argc, char* argv[])
@@ -177,6 +180,10 @@ int main(int argc, char* argv[])
 	demoGlobalClientManager.start();
 
 	DemoBridgeClient client(mainParams[0], atoi(mainParams[1].c_str()), !CommandLineParser::exist("udp"));
+
+	std::string encryptKeyFile = CommandLineParser::getString("ecc-pem");
+	if (!encryptKeyFile.empty())
+		client.enableEncryption(encryptKeyFile.c_str());
 
 	client.setConnectedNotify([](uint64_t connectionId, const std::string& endpoint,
 		bool isTCP, bool encrypted, bool connected) {
@@ -201,6 +208,10 @@ int main(int argc, char* argv[])
 	test(&client, 40, 30000);
 	test(&client, 50, 30000);
 	test(&client, 60, 30000);
+
+	FPLog::printLogs();
+
+	cout<<"----[ All tests are done. ]-------"<<endl;
 
 	return 0;
 }

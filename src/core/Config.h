@@ -6,7 +6,7 @@
 
 namespace fpnn
 {
-#define FPNN_SDK_VERSION "1.0.1"
+#define FPNN_SDK_VERSION "1.1.0"
 
 #define FPNN_DEFAULT_MAX_PACKAGE_LEN (8*1024*1024)
 
@@ -63,6 +63,8 @@ namespace fpnn
 				static int _max_tolerated_milliseconds_before_first_package_received;
 				static int _max_tolerated_milliseconds_before_valid_package_received;
 				static int _max_tolerated_count_before_valid_package_received;
+
+				static int _ecdh_copy_retained_milliseconds;
 			};
 
 		public:

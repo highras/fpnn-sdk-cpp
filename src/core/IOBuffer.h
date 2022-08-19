@@ -41,9 +41,9 @@ namespace fpnn
 			if (rev) _receivedPackage += 1;
 			return rev;
 		}
-		inline bool embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+		inline bool embed_fetchRawData(TCPClientConnection * connection, EmbedInteriorRecvNotifyDelegate delegate)
 		{
-			bool rev = _receiver->embed_fetchRawData(connectionId, delegate);
+			bool rev = _receiver->embed_fetchRawData(connection, delegate);
 			if (rev) _receivedPackage += 1;
 			return rev; 
 		}

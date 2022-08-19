@@ -35,3 +35,4 @@ int Config::UDP::_max_resent_count_per_call(640);
 int Config::UDP::_max_tolerated_milliseconds_before_first_package_received(3000);
 int Config::UDP::_max_tolerated_milliseconds_before_valid_package_received(20000);
 int Config::UDP::_max_tolerated_count_before_valid_package_received(1000);
+int Config::UDP::_ecdh_copy_retained_milliseconds(10*1000);

@@ -4,16 +4,41 @@
 using namespace std;
 using namespace fpnn;
 
-int main(int argc, const char** argv)
+ClientPtr buildClient(int argc, const char** argv)
 {
-	if (argc != 3)
+	if (argc == 3)
 	{
-		cout<<"Usage: "<<argv[0]<<" <endpoint> <server-pem-key-file>"<<endl;
-		return 0;
+		TCPClientPtr client = TCPClient::createClient(argv[1]);
+		client->enableEncryptorByPemFile(argv[2]);
+		return client;
 	}
 
-	TCPClientPtr client = TCPClient::createClient(argv[1]);
-	client->enableEncryptorByPemFile(argv[2]);
+	if (argc == 4)
+	{
+		if (strcasecmp("-udp", argv[3]) == 0)
+		{
+			UDPClientPtr client = UDPClient::createClient(argv[1]);
+			client->enableEncryptorByPemFile(argv[2]);
+			return client;
+		}
+
+		if (strcasecmp("-udp", argv[1]) == 0)
+		{
+			UDPClientPtr client = UDPClient::createClient(argv[2]);
+			client->enableEncryptorByPemFile(argv[3]);
+			return client;
+		}
+	}
+
+	cout<<"Usage: "<<argv[0]<<" <endpoint> <server-pem-key-file> [-udp]"<<endl;
+	return nullptr;
+}
+
+int main(int argc, const char** argv)
+{
+	ClientPtr client = buildClient(argc, argv);
+	if (!client)
+		return 0;
 
 	FPQWriter qw(3, "two way demo");
 	qw.param("int", 2);

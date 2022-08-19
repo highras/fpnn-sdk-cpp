@@ -167,7 +167,7 @@ bool UnencryptedReceiver::fetch(FPQuestPtr& quest, FPAnswerPtr& answer)
 	return rev;
 }
 
-bool UnencryptedReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+bool UnencryptedReceiver::embed_fetchRawData(TCPClientConnection * connection, EmbedInteriorRecvNotifyDelegate delegate)
 {
 	if (_curr != _total)
 		return false;
@@ -179,12 +179,12 @@ bool UnencryptedReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRecvNot
 	_curr = 0;
 	_total = FPMessage::_HeaderLength;
 
-	delegate(connectionId, _bodyBuffer, dataLen);
+	bool status = delegate(connection, _bodyBuffer, dataLen);
 
 	if (Config::_embed_receiveBuffer_freeBySDK)
 		free(_bodyBuffer);
 	
 	_bodyBuffer = NULL;
 
-	return true;
+	return status;
 }

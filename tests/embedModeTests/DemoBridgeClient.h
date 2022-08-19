@@ -208,6 +208,7 @@ public:
 //=================================================================//
 class DemoBridgeClient
 {
+	bool _isTCP;
 	std::mutex _mutex;
 	ClientPtr _sdkClient;
 	std::shared_ptr<DemoQuestProcessor> _questProcessor;
@@ -231,6 +232,14 @@ public:
 	inline void setQuestTimeout(int64_t seconds)
 	{
 		_sdkClient->setQuestTimeout(seconds);
+	}
+
+	bool enableEncryption(const char *pemFilePath)
+	{
+		if (_isTCP)
+			return ((TCPClient*)(_sdkClient.get()))->enableEncryptorByPemFile(pemFilePath);
+		else
+			return ((UDPClient*)(_sdkClient.get()))->enableEncryptorByPemFile(pemFilePath);
 	}
 
 	bool sendQuest(FPQuestPtr quest, std::function<void (FPAnswerPtr answer, int errorCode)> callback, int timeout = 0)
@@ -415,12 +424,6 @@ void DemoClientManager::dealReceivedAnswer(uint64_t connectionId, FPAnswerPtr an
 		cb = client->takeAnswerCallback(answer);
 		if (cb == NULL)
 		{
-			/*
-			*	！！！注意！！！
-			*
-			*	如果是 TCP client，并开启了 keepAlive，那这里有可能是 *ping 的回包。可以安全忽略。
-			*	具体请参见 embedTypes.h 的注释。
-			*/
 			std::cout<<" --[Info]--: received invalid answer."<<std::endl;
 			return;
 		}
@@ -493,7 +496,7 @@ void DemoQuestProcessor::connectionWillClose(const ConnectionInfo& ci, bool clos
 	demoGlobalClientManager.unregisterConnection(ci.uniqueId());
 }
 
-DemoBridgeClient::DemoBridgeClient(const std::string& ip, int port, bool tcp)
+DemoBridgeClient::DemoBridgeClient(const std::string& ip, int port, bool tcp): _isTCP(tcp)
 {
 	if (tcp)
 		_sdkClient = Client::createTCPClient(ip, port);

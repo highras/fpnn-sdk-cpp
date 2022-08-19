@@ -240,6 +240,8 @@ namespace fpnn
 	//===============[ TCPClientIOProcessor ]=====================//
 	class TCPClientIOProcessor
 	{
+		static bool embed_fetchAnswerSeqNumLEFromBinary(const void* buffer, uint32_t& seqNumLE);
+		static bool embed_interiorRecvNotifyDelegate(TCPClientConnection * connection, const void* buffer, int length);
 		static bool read(TCPClientConnection * connection, bool& closed);
 		static bool deliverAnswer(TCPClientConnection * connection, FPAnswerPtr answer);
 		static bool deliverQuest(TCPClientConnection * connection, FPQuestPtr quest);

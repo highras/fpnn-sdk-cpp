@@ -57,6 +57,8 @@ namespace fpnn
 		std::thread _timeoutChecker;
 		std::thread _loopThread;
 
+		std::atomic<uint64_t> _loopTicket;
+
 		ClientEngine(const ClientEngineInitParams *params = NULL);
 
 		void closeUDPConnection(UDPClientConnection* connection);
@@ -113,10 +115,14 @@ namespace fpnn
 		{
 			return _connectionMap.takeCallback(socket, seqNum);
 		}
+		inline bool embed_checkCallback(int socket, uint32_t seqNum)
+		{
+			return _connectionMap.embed_checkCallback(socket, seqNum);
+		}
 
 		bool join(const BasicConnection* connection, bool waitForSending);
 		bool waitSendEvent(const BasicConnection* connection);
-		void quit(const BasicConnection* connection);
+		void quit(BasicConnection* connection);
 
 		inline void keepAlive(int socket, bool keepAlive)		//-- Only for ARQ UDP
 		{
@@ -206,7 +212,7 @@ namespace fpnn
 			delete _connection;
 		}
 
-		virtual bool releaseable() { return (_connection->_refCount == 0); }
+		virtual bool releaseable(uint64_t currentLoopTicket) { return _connection->releaseable(currentLoopTicket); }
 		virtual void run();
 	};
 }

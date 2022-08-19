@@ -7,6 +7,24 @@
 
 namespace fpnn
 {
+	/**
+	 *	ECCKeyExchange is only server using.
+	 * 	This is a fake class for UDP.v2 unused server side codes.
+	 */
+	class ECCKeyExchange
+	{
+	public:
+		bool calcKey(uint8_t* key, uint8_t* iv, int keylen, const std::string& peerPublicKey)
+		{
+			(void)key;
+			(void)iv;
+			(void)keylen;
+			(void)peerPublicKey;
+
+			return false;
+		}
+	};
+
 	class ECCKeysMaker
 	{
 		int _secertLen;

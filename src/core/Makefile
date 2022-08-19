@@ -3,7 +3,9 @@ OBJS_C =
 OBJS_CXX = ClientEngine.o TCPClientIOWorker.o Config.o ConnectionMap.o IOBuffer.o ClientInterface.o TCPClient.o  \
 			Encryptor.o EncryptedStreamReceiver.o EncryptedPackageReceiver.o UnencryptedReceiver.o \
 			micro-ecc/uECC.o KeyExchange.o PEM_DER_SAX.o IQuestProcessor.o \
-			UDPIOBuffer.o UDPARQProtocolParser.o UDPCongestionControl.o UDPClientIOWorker.o UDPClient.o
+			UDPCongestionControl.o UDPClientIOWorker.o UDPClient.o \
+			UDP.v2/UDPCommon.v2.o UDP.v2/UDPAssembler.v2.o UDP.v2/UDPParser.v2.o UDP.v2/UDPIOBuffer.v2.o \
+			UDP.v2/UDPUnconformedMap.v2.o
 
 # Static 
 LIBFPNN_A = libfpnn.a

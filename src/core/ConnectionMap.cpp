@@ -2,7 +2,18 @@
 #include "ConnectionMap.h"
 
 namespace fpnn
-{		
+{
+	bool ConnectionMap::embed_checkCallback(int socket, uint32_t seqNum)
+	{
+		std::unique_lock<std::mutex> lck(_mutex);
+		auto it = _connections.find(socket);
+		if (it == _connections.end())
+			return false;
+
+		BasicConnection* connection = it->second;
+		return (connection->_callbackMap.find(seqNum) != connection->_callbackMap.end());
+	}
+
 	BasicAnswerCallback* ConnectionMap::takeCallback(int socket, uint32_t seqNum)
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
@@ -12,13 +23,13 @@ namespace fpnn
 			BasicConnection* connection = it->second;
 			
 			auto iter = connection->_callbackMap.find(seqNum);
-  			if (iter != connection->_callbackMap.end())
-  			{
-  				BasicAnswerCallback* cb = iter->second;
-  				connection->_callbackMap.erase(seqNum);
-  				return cb;
-  			}
-  			return NULL;
+			if (iter != connection->_callbackMap.end())
+			{
+				BasicAnswerCallback* cb = iter->second;
+				connection->_callbackMap.erase(seqNum);
+				return cb;
+			}
+			return NULL;
 		}
 		return NULL;
 	}

@@ -145,6 +145,11 @@ void Tester::test_worker(int qps)
 	cout<<"-- qps: "<<qps<<", usec: "<<usec<<endl;
 
 	DemoBridgeClient client(_ip, _port, !CommandLineParser::exist("udp"));
+	{
+		std::string encryptKeyFile = CommandLineParser::getString("ecc-pem");
+		if (!encryptKeyFile.empty())
+			client.enableEncryption(encryptKeyFile.c_str());
+	}
 
 	client.setConnectedNotify([](uint64_t connectionId, const std::string& endpoint,
 		bool isTCP, bool encrypted, bool connected) {
@@ -209,7 +214,7 @@ int main(int argc, char* argv[])
 	std::vector<std::string> mainParams = CommandLineParser::getRestParams();
 	if (mainParams.size() != 4)
 	{
-		cout<<"Usage: "<<argv[0]<<" ip port connections total-qps [-udp]"<<endl;
+		cout<<"Usage: "<<argv[0]<<" ip port connections total-qps [-ecc-pem ecc-pem-file] [-udp]"<<endl;
 		return 0;
 	}
 

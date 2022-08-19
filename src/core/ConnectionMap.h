@@ -242,6 +242,7 @@ namespace fpnn
 		void TCPClientKeepAlive(std::list<TCPClientConnection*>& invalidConnections, std::list<TCPClientConnection*>& connectExpiredConnections);
 
 	public:
+		bool embed_checkCallback(int socket, uint32_t seqNum);
 		BasicAnswerCallback* takeCallback(int socket, uint32_t seqNum);
 		void extractTimeoutedCallback(int64_t threshold, std::list<std::map<uint32_t, BasicAnswerCallback*> >& timeouted);
 		void extractTimeoutedConnections(int64_t threshold, std::list<BasicConnection*>& timeouted);

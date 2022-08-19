@@ -41,7 +41,7 @@
 	单一客户端多线程并发稳定性测试。
 
 		Usage: ./singleClientConcurrentTest ip port [-ecc-pem ecc-pem-file [-package|-stream] [-128bits|-256bits]]
-		Usage: ./singleClientConcurrentTest ip port -udp
+		Usage: ./singleClientConcurrentTest ip port -udp [-ecc-pem ecc-pem-file [-packageReinforce] [-dataEnhance [-dataReinforce]]]
 
 
 ### 嵌入模式测试模块
@@ -52,7 +52,7 @@
 
 	异步压力测试。
 
-		Usage: ./embedAsyncStressClient ip port connections total-qps [-udp]
+		Usage: ./embedAsyncStressClient ip port connections total-qps [-ecc-pem ecc-pem-file] [-udp]
 
 * **embedAsyncStressClient**
 
@@ -82,4 +82,4 @@
 
 	单一客户端多线程并发稳定性测试。
 
-		Usage: ./embedSingleClientConcurrentTest ip port [-udp]
+		Usage: ./embedSingleClientConcurrentTest ip port [-ecc-pem ecc-pem-file] [-udp]

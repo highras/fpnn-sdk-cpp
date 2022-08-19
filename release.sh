@@ -29,9 +29,14 @@ destDir=${TARGET_DIR}/include/fpnn/core
 
 mkdir -p $destDir
 cp -f src/core/*.h $destDir
+
 cp -rf src/core/micro-ecc $destDir
 rm -f $destDir/micro-ecc/*.c
 rm -f $destDir/micro-ecc/*.o
+
+cp -rf src/core/UDP.v2 $destDir
+rm -f $destDir/UDP.v2/*.cpp
+rm -f $destDir/UDP.v2/*.o
 
 # ------- make libfpnn -------
 destDir=${TARGET_DIR}/include/fpnn/
@@ -42,4 +47,4 @@ destDir=${TARGET_DIR}/lib
 mkdir -p $destDir
 
 fpnnLib=libfpnn.a
-ar -rcs ${destDir}/$fpnnLib src/base/*.o src/proto/*.o src/core/*.o src/core/micro-ecc/*.o
+ar -rcs ${destDir}/$fpnnLib src/base/*.o src/proto/*.o src/core/*.o src/core/micro-ecc/*.o src/core/UDP.v2/*.o

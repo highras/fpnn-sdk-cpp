@@ -21,6 +21,8 @@
 
 * **`bool Config::_embed_receiveBuffer_freeBySDK;`**
 
+	**注意：当前仅对TCP有效**
+
 	数据直收接口 [Client::embed_configRecvNotifyDelegate](Client.md#embed_configRecvNotifyDelegate) 收到的数据，是否由 SDK 释放。  
 	具体请参见：[嵌入模式](../embedMode.md)。默认：true
 

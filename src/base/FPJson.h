@@ -333,8 +333,8 @@ public:
 	double getReal(double dft = 0.0) const;
 	std::string getString(const std::string& dft = std::string()) const;
 
-	const std::list<JsonPtr> * const getList() const;
-	const std::map<std::string, JsonPtr> * const getDict() const;
+	const std::list<JsonPtr> * getList() const;
+	const std::map<std::string, JsonPtr> * getDict() const;
 
 	//------------ want part ------------//
 	operator bool()        const { return wantBool(); }
@@ -396,12 +396,12 @@ public:
 	std::string getStringAt(const char* path, const std::string& dft = std::string(), const std::string& delim = "./") { return getStringAt(std::string(path), dft, delim); }
 
 	JsonPtr getNode(const std::string& path, const std::string& delim = "./");
-	const std::list<JsonPtr> * const getList(const std::string& path, const std::string& delim = "./");
-	const std::map<std::string, JsonPtr> * const getDict(const std::string& path, const std::string& delim = "./");
+	const std::list<JsonPtr> * getList(const std::string& path, const std::string& delim = "./");
+	const std::map<std::string, JsonPtr> * getDict(const std::string& path, const std::string& delim = "./");
 
 	JsonPtr getNode(const char* path, const std::string& delim = "./")                                       { return getNode(std::string(path), delim); }
-	const std::list<JsonPtr> * const getList(const char* path, const std::string& delim = "./")              { return getList(std::string(path), delim); }
-	const std::map<std::string, JsonPtr> * const getDict(const char* path, const std::string& delim = "./")  { return getDict(std::string(path), delim); }
+	const std::list<JsonPtr> * getList(const char* path, const std::string& delim = "./")              { return getList(std::string(path), delim); }
+	const std::map<std::string, JsonPtr> * getDict(const char* path, const std::string& delim = "./")  { return getDict(std::string(path), delim); }
 
 	//------------ want part ------------//
 	bool wantBool(const std::string& path, const std::string& delim = "./");

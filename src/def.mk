@@ -5,7 +5,7 @@ OPTIMIZE=-O2
 CFLAGS +=
 
 CXXFLAGS += -std=c++11
-
+#CPPFLAGS += -Wextra -Wno-unused-parameter -Wno-implicit-fallthrough
 CPPFLAGS += -g -Wall -Werror -fPIC $(OPTIMIZE)
 
 LIBS += $(OPTIMIZE) -rdynamic -lstdc++ -lfpnn -lfpproto -lfpbase -lpthread -lz $(LINKARGS)

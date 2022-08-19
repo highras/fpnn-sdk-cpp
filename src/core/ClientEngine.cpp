@@ -42,7 +42,7 @@ ClientEnginePtr ClientEngine::create(const ClientEngineInitParams *params)
 }
 
 ClientEngine::ClientEngine(const ClientEngineInitParams *params): _running(true),
-	_newSocketSetChanged(false), _waitWriteSetChanged(false), _quitSocketSetChanged(false)
+	_newSocketSetChanged(false), _waitWriteSetChanged(false), _quitSocketSetChanged(false), _loopTicket(0)
 {
 	ClientEngineInitParams defaultParams;
 	if (!params)
@@ -97,6 +97,7 @@ bool ClientEngine::join(const BasicConnection* connection, bool waitForSending)
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
 
+		_quitSocketSet.erase(socket);
 		_newSocketSet.insert(socket);
 		_newSocketSetChanged = true;
 
@@ -117,6 +118,9 @@ bool ClientEngine::waitSendEvent(const BasicConnection* connection)
 {
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
+		if (_quitSocketSet.find(connection->socket()) != _quitSocketSet.end())
+			return false;
+		
 		_waitWriteSet.insert(connection->socket());
 		_waitWriteSetChanged = true;
 	}
@@ -126,16 +130,20 @@ bool ClientEngine::waitSendEvent(const BasicConnection* connection)
 	return true;
 }
 
-void ClientEngine::quit(const BasicConnection* connection)
+void ClientEngine::quit(BasicConnection* connection)
 {
 	int socket = connection->socket();
 	_connectionMap.remove(socket);
 
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
+		_waitWriteSet.erase(socket);
+		_newSocketSet.erase(socket);
 		_quitSocketSet.insert(socket);
 		_quitSocketSetChanged = true;
 	}
+
+	connection->_quitEngineLoopTicket = _loopTicket;
 
 	int count = (int)write(_notifyFds[1], this, 4);
 	(void)count;
@@ -238,6 +246,8 @@ void ClientEngine::clearConnection(int socket, int errorCode)
 
 void ClientEngine::clean()
 {
+	_loopTicket += 5;	//-- Plus any number larger than 2 for all connections can be closed.
+
 	std::set<int> fdSet;
 	_connectionMap.getAllSocket(fdSet);
 	
@@ -300,6 +310,8 @@ void ClientEngine::loopThread()
 		int activeCount = select(maxfd + 1, &rfds, &wfds, &efds, NULL);
 		if (activeCount > 0)
 		{
+			_loopTicket++;
+
 			if (FD_ISSET(_notifyFds[0], &rfds))		//-- MUST do this before check _running flag.
 				consumeNotifyData();
 
@@ -317,7 +329,6 @@ void ClientEngine::loopThread()
 						FD_CLR(socket, &wfds);
 
 						dropped.insert(socket);
-						clearConnection(socket, FPNN_EC_CORE_UNKNOWN_ERROR);
 					}
 					else if (FD_ISSET(socket, &rfds))
 						connStatus[socket].canRead = true;
@@ -327,6 +338,7 @@ void ClientEngine::loopThread()
 				{
 					allSocket.erase(socket);
 					wantWriteSocket.erase(socket);
+					clearConnection(socket, FPNN_EC_CORE_UNKNOWN_ERROR);
 				}
 			}
 
@@ -345,6 +357,8 @@ void ClientEngine::loopThread()
 
 			//-- check event flags
 			{
+				_loopTicket++;
+
 				std::unique_lock<std::mutex> lck(_mutex);
 				if (_quitSocketSetChanged)
 				{
@@ -380,6 +394,12 @@ void ClientEngine::loopThread()
 		{
 			if (errno == EINTR || errno == EFAULT)
 				continue;
+
+			if (errno == EBADF)
+			{
+				LOG_ERROR("EBADF when select()! Please tell swxlion@hotmail.com to rewrite all _loopTicket logic and releaseable logic.");
+				break;
+			}
 			
 			LOG_ERROR("Unknown Error when select() errno: %d", errno);
 			break;
@@ -412,11 +432,13 @@ void ClientEngine::consumeNotifyData()
 void ClientEngine::reclaimConnections()
 {
 	std::set<IReleaseablePtr> deleted;
+	uint64_t currentLoopTicket = _loopTicket;
+
 	{
 		std::unique_lock<std::mutex> lck(_mutex);
 		for (IReleaseablePtr object: _reclaimedConnections)
 		{
-			if (object->releaseable())
+			if (object->releaseable(currentLoopTicket))
 				deleted.insert(object);
 		}
 		for (IReleaseablePtr object: deleted)

@@ -1000,7 +1000,7 @@ std::string Json::getString(const std::string& dft) const
 	return dft;
 }
 
-const std::list<JsonPtr> * const Json::getList() const
+const std::list<JsonPtr> * Json::getList() const
 {
 	if (_type == JSON_Array)
 		return (std::list<JsonPtr>*)_data;
@@ -1008,7 +1008,7 @@ const std::list<JsonPtr> * const Json::getList() const
 	return NULL;
 }
 
-const std::map<std::string, JsonPtr> * const Json::getDict() const
+const std::map<std::string, JsonPtr> * Json::getDict() const
 {
 	if (_type == JSON_Object)
 		return (std::map<std::string, JsonPtr>*)_data;
@@ -1243,7 +1243,7 @@ std::string Json::getStringAt(const std::string& path, const std::string& dft, c
 	Implemented at "Fetch/get Nodes" part.
 */
 	
-const std::list<JsonPtr> * const Json::getList(const std::string& path, const std::string& delim)
+const std::list<JsonPtr> * Json::getList(const std::string& path, const std::string& delim)
 {
 	JsonPtr node = getNode(path, delim);
 	if (node)
@@ -1252,7 +1252,7 @@ const std::list<JsonPtr> * const Json::getList(const std::string& path, const st
 		return NULL;
 }
 
-const std::map<std::string, JsonPtr> * const Json::getDict(const std::string& path, const std::string& delim)
+const std::map<std::string, JsonPtr> * Json::getDict(const std::string& path, const std::string& delim)
 {
 	JsonPtr node = getNode(path, delim);
 	if (node)

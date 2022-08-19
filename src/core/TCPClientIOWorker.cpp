@@ -58,7 +58,7 @@ bool TCPClientConnection::connectedEventCompleted()
 	_sendBuffer.allowSending();
 
 	bool needWaitSendEvent = false;
-	if (send(needWaitSendEvent) == false)
+	if (send(needWaitSendEvent) != 0)
 		return false;
 
 	if (needWaitSendEvent)
@@ -126,7 +126,7 @@ bool TCPClientIOProcessor::read(TCPClientConnection * connection, bool& closed)
 		else
 		{
 			bool status = connection->_recvBuffer.embed_fetchRawData(
-				connection->_connectionInfo->uniqueId(), connection->_embedRecvNotifyDeleagte);
+				connection, TCPClientIOProcessor::embed_interiorRecvNotifyDelegate);
 			if (status == false)
 			{
 				connection->_recvBuffer.returnToken();
@@ -136,6 +136,52 @@ bool TCPClientIOProcessor::read(TCPClientConnection * connection, bool& closed)
 		}
 	}
 	connection->_recvBuffer.returnToken();
+	return true;
+}
+
+bool TCPClientIOProcessor::embed_fetchAnswerSeqNumLEFromBinary(const void* buffer, uint32_t& seqNumLE)
+{
+	uint8_t mType = *((uint8_t*)buffer + 6);
+	if (mType != 2)
+		return false;
+
+	seqNumLE = *((uint32_t*)((uint8_t*)buffer + 12));
+	return true;
+}
+
+bool TCPClientIOProcessor::embed_interiorRecvNotifyDelegate(TCPClientConnection * connection, const void* buffer, int length)
+{
+	uint32_t seqNumLE;
+	if (embed_fetchAnswerSeqNumLEFromBinary(buffer, seqNumLE))
+	{
+		if (ClientEngine::instance()->embed_checkCallback(connection->socket(), seqNumLE))
+		{
+			FPAnswerPtr answer;
+			try
+			{
+				answer = Decoder::decodeAnswer((char *)buffer, length);
+			}
+			catch (const FpnnError& ex)
+			{
+				LOG_ERROR("Decode interior answer error, seq %d. Connection will be closed by server. Peer:%s. Code: %d, error: %s.",
+					seqNumLE, connection->_connectionInfo->str().c_str(), ex.code(), ex.what());
+
+				return false;
+			}
+			catch (...)
+			{
+				LOG_ERROR("Decode interior answer error, seq %d. Connection will be closed by server. Peer:%s",
+					seqNumLE, connection->_connectionInfo->str().c_str());
+
+				return false;
+			}
+
+			return deliverAnswer(connection, answer);
+		}
+	}
+
+	uint64_t connectionId = connection->_connectionInfo->uniqueId();
+	connection->_embedRecvNotifyDeleagte(connectionId, buffer, length);
 	return true;
 }
 

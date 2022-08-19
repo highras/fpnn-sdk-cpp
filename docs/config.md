@@ -1,6 +1,14 @@
 ## Configurations
 
-### 配置
+### 编译配置
+
+#### Wextra 选项
+
+需要使用 `-Wextra` 编译选项时，取消 [def.mk](../src/def.mk) 中，含有 `-Wextra` 一行的 "CPPFLAGS" 的注释即可。
+
+如果在使用 SDK 库文件的过程中需要使用 `-Wextra` 编译选项，请视情况增加编译选项 `-Wno-unused-parameter -Wno-implicit-fallthrough`。
+
+### SDK 配置
 
 全局配置：
 
@@ -21,12 +29,3 @@ TCP & UDP 客户端：
 	TCP 特有配置请参见 [TCPClient](APIs/TCPClient.md) 相关接口；
 
 	UDP 特有配置请参见 [UDPClient](APIs/UDPClient.md) 相关接口。
-
-### 当前 UDP 配置性能基准
-
-因为 UDP 的相关参数在未来的版本中可能存在不确定的变动，因此未完全文档化。
-
-当前的 UDP 参数测试结果，保证：
-
-* 当单链接 QPS 为 100 时，10 个 UDP 虚拟链接，总 1000 QPS，从宁夏经过GFW访问欧洲和美洲无压力，CPU 在50% 以下。
-* 当单链接 QPS 为 50 时，20 个 UDP 虚拟链接，总 1000 QPS，从宁夏经过GFW访问欧洲和美洲无压力，CPU 在50% 以下。

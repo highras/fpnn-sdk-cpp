@@ -75,6 +75,9 @@ void testThread(ClientPtr client, int count)
 	int act = 0;
 	for (int i = 0; i < count; i++)
 	{
+		if (i % 200 == 0)
+			cout<<endl;
+
 		int64_t index = (slack_real_msec() + i + ((int64_t)(&i) >> 16)) % 64;
 		if (i >= 10)
 		{
@@ -186,10 +189,23 @@ void processEncrypt(TCPClientPtr client)
 	}
 }
 
+void processEncrypt(UDPClientPtr client)
+{
+	if (CommandLineParser::exist("ecc-pem"))
+	{
+		std::string pemFile = CommandLineParser::getString("ecc-pem");
+		bool packageReinforce = CommandLineParser::exist("packageReinforce");
+		bool dataEnhance = CommandLineParser::exist("dataEnhance");
+		bool dataReinforce = CommandLineParser::exist("dataReinforce");
+
+		client->enableEncryptorByPemFile(pemFile.c_str(), packageReinforce, dataEnhance, dataReinforce);
+	}
+}
+
 void showUsage(const char* appName)
 {
 	cout<<"Usage: "<<appName<<" ip port [-ecc-pem ecc-pem-file [-package|-stream] [-128bits|-256bits]]"<<endl;
-	cout<<"Usage: "<<appName<<" ip port -udp"<<endl;
+	cout<<"Usage: "<<appName<<" ip port -udp [-ecc-pem ecc-pem-file [-packageReinforce] [-dataEnhance [-dataReinforce]]]"<<endl;
 }
 
 int main(int argc, char* argv[])
@@ -204,7 +220,11 @@ int main(int argc, char* argv[])
 
 	std::shared_ptr<Client> client;
 	if (CommandLineParser::exist("udp"))
-		client = Client::createUDPClient(mainParams[0], std::stoi(mainParams[1]));
+	{
+		UDPClientPtr udpClient = Client::createUDPClient(mainParams[0], std::stoi(mainParams[1]));
+		processEncrypt(udpClient);
+		client = udpClient;
+	}
 	else
 	{
 		TCPClientPtr tcpClient = Client::createTCPClient(mainParams[0], std::stoi(mainParams[1]));
@@ -222,6 +242,10 @@ int main(int argc, char* argv[])
 	test(client, 40, 30000);
 	test(client, 50, 30000);
 	test(client, 60, 30000);
+
+	FPLog::printLogs();
+
+	cout<<"----[ All tests are done. ]-------"<<endl;
 
 	return 0;
 }

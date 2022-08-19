@@ -4,7 +4,6 @@
 
 * 所有演示用例，均使用 [FPNN 框架](https://github.com/highras/fpnn)默认的目标测试服务器[serverTest](https://github.com/highras/fpnn/blob/master/core/test/UniversalFunctionalTests/serverTest.cpp)。
 
-* 目前所有演示用例，均仅演示了 TCPClient 相关的用法。对于 UDPClient，除了 UDPClient 暂时不支持加密外，其余完全一模一样，所以不再单独演示。
 
 ### 测试模块
 
@@ -14,7 +13,7 @@
 
 	在 Server Push/Duplex 的处理中，提前返回的用法示范。
 
-		Usage: ./aheadAnswerInDuplex <endpoint>
+		Usage: ./aheadAnswerInDuplex-tcp <endpoint> [-udp]
 
 	示范内容：
 
@@ -27,7 +26,7 @@
 
 	在 Server Push/Duplex 的处理中，异步返回的用法示范。
 
-		Usage: ./asyncAnswerInDuplex <endpoint>
+		Usage: ./asyncAnswerInDuplex-tcp <endpoint> [-udp]
 
 	示范内容：
 
@@ -41,7 +40,7 @@
 
 	连接事件用法示范。
 
-		Usage: ./connectionEvents <endpoint>
+		Usage: ./connectionEvents-tcp <endpoint> [-udp]
 
 	示范内容：
 
@@ -55,7 +54,7 @@
 
 	加密链接的使用示范。
 
-		Usage: ./encryptedCommunication <endpoint> <server-pem-key-file>
+		Usage: ./encryptedCommunication-tcp <endpoint> <server-pem-key-file> [-udp]
 
 	示范内容：
 
@@ -68,7 +67,7 @@
 
 	单向(oneway) Server Push/Duplex 的请求处理示范。
 
-		Usage: ./oneWayDuplex <endpoint>
+		Usage: ./oneWayDuplex-tcp <endpoint> [-udp]
 
 	示范内容：
 
@@ -81,7 +80,7 @@
 
 	双向(twoway) Server Push/Duplex 的请求处理示范。
 
-		Usage: ./twoWayDuplex <endpoint>
+		Usage: ./twoWayDuplex-tcp <endpoint> [-udp]
 
 	示范内容：
 

@@ -63,6 +63,8 @@
 
 	如果调用 `Config::_embed_receiveBuffer_freeBySDK(bool autoFree)`，设置参数 autoFree = false，则 buffer 需要由调用者释放（free）。
 
+	**注意：当前仅对TCP有效。**
+
 * **极端情况**：由于线程切换和操作系统线程调度的缘故，存在着 Client 释放后的极短时间内，对应的 EmbedRecvNotifyDelegate 依然被调用的情况(概率极低)。为了防止以上小概率事件发生，可参考以下两个方案：
 
 	1. EmbedRecvNotifyDelegate 不与封装层语言对象绑定，而是使用全局静态函数实现；

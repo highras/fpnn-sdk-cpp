@@ -150,7 +150,7 @@ bool EncryptedPackageReceiver::fetch(FPQuestPtr& quest, FPAnswerPtr& answer)
 	return rev;
 }
 
-bool EncryptedPackageReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRecvNotifyDelegate delegate)
+bool EncryptedPackageReceiver::embed_fetchRawData(TCPClientConnection * connection, EmbedInteriorRecvNotifyDelegate delegate)
 {
 	if (_curr != _total)
 		return false;
@@ -167,10 +167,10 @@ bool EncryptedPackageReceiver::embed_fetchRawData(uint64_t connectionId, EmbedRe
 	_getLength = false;
 	_currBuf = (uint8_t*)&_packageLen;
 
-	delegate(connectionId, buf, dataLen);
+	bool status = delegate(connection, buf, dataLen);
 
 	if (Config::_embed_receiveBuffer_freeBySDK)
 		free(buf);
 	
-	return true;
+	return status;
 }

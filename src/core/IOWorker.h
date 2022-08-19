@@ -12,7 +12,7 @@ namespace fpnn
 	class IReleaseable
 	{
 	public:
-		virtual bool releaseable() = 0;
+		virtual bool releaseable(uint64_t currentLoopTicket) = 0;
 		virtual ~IReleaseable() {}
 	};
 	typedef std::shared_ptr<IReleaseable> IReleaseablePtr;
@@ -113,8 +113,10 @@ namespace fpnn
 
 		std::unordered_map<uint32_t, BasicAnswerCallback*> _callbackMap;
 
+		uint64_t _quitEngineLoopTicket;
+
 	public:
-		BasicConnection(ConnectionInfoPtr connectionInfo): _connectionInfo(connectionInfo), _refCount(0)
+		BasicConnection(ConnectionInfoPtr connectionInfo): _connectionInfo(connectionInfo), _refCount(0), _quitEngineLoopTicket(0)
 		{
 			_connectionInfo->token = (uint64_t)this;	//-- if use Virtual Derive, must redo this in subclass constructor.
 			_activeTime = time(NULL);
@@ -127,7 +129,16 @@ namespace fpnn
 
 		virtual bool waitForSendEvent() = 0;
 		virtual enum ConnectionType connectionType() = 0;
-		virtual bool releaseable() { return (_refCount == 0); }
+		virtual bool releaseable(uint64_t currentLoopTicket)
+		{
+			if (_quitEngineLoopTicket > 0)
+			{
+				if (currentLoopTicket - _quitEngineLoopTicket > 1) ;
+				else
+					return false;
+			}
+			return (_refCount == 0);
+		}
 
 		inline int socket() const { return _connectionInfo->socket; }
 		inline IQuestProcessorPtr questProcessor() { return _questProcessor; }
